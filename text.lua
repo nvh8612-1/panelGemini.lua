@@ -1,32 +1,76 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Các biến trạng thái toàn cục
-_G.FruitBatchLimit = 1 -- Số lượng trái xử lý tối đa mỗi lượt (mặc định là 1)
+-- Biến trạng thái toàn cục
+_G.FruitBatchLimit = 1
 _G.AutoHarvest = false
 _G.AutoCollectSeed = false
+_G.MyPlot = nil
 
 -- ==========================================
--- 1. HÀM TỰ ĐỘNG THU HOẠCH (AUTO HARVEST)
+-- 1. HÀM TRACKER TÌM PLOT TỰ ĐỘNG
+-- ==========================================
+local function findMyPlot()
+    local gardens = workspace:FindFirstChild("Gardens")
+    if not gardens then return nil end
+
+    -- Ưu tiên 1: Quét tên Owner trong từng Plot
+    for _, plot in ipairs(gardens:GetChildren()) do
+        local ownerValue = plot:FindFirstChild("Owner") or plot:FindFirstChild("OwnerName") or plot:FindFirstChild("Player")
+        if ownerValue then
+            if (ownerValue:IsA("StringValue") and ownerValue.Value == LocalPlayer.Name) or
+               (ownerValue:IsA("ObjectValue") and ownerValue.Value == LocalPlayer) then
+                return plot
+            end
+        end
+        if plot.Name:find(LocalPlayer.Name) or plot.Name:find(tostring(LocalPlayer.UserId)) then
+            return plot
+        end
+    end
+
+    -- Ưu tiên 2 (Dự phòng): Chọn Plot nằm gần nhân vật nhất
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local rootPos = character.HumanoidRootPart.Position
+        local closestPlot = nil
+        local shortestDistance = math.huge
+
+        for _, plot in ipairs(gardens:GetChildren()) do
+            local plotPart = plot:FindFirstChildWhichIsA("BasePart", true)
+            if plotPart then
+                local dist = (plotPart.Position - rootPos).Magnitude
+                if dist < shortestDistance then
+                    shortestDistance = dist
+                    closestPlot = plot
+                end
+            end
+        end
+        return closestPlot
+    end
+    return nil
+end
+
+-- ==========================================
+-- 2. HÀM TỰ ĐỘNG THU HOẠCH (AUTO HARVEST)
 -- ==========================================
 local function processHarvest()
     pcall(function()
-        -- Tìm thư mục chứa cây/trái trồng trong workspace (thường tên là Crops, Plants, v.v.)
-        local cropsFolder = workspace:FindFirstChild("Crops") 
-            or workspace:FindFirstChild("Plants") 
-            or workspace:FindFirstChild("Farm") 
-            or workspace
-
+        -- Tự động tracker lại Plot nếu chưa xác định được
+        if not _G.MyPlot then
+            _G.MyPlot = findMyPlot()
+        end
+        
+        local targetFolder = _G.MyPlot or workspace:FindFirstChild("Gardens") or workspace
         local count = 0
-        for _, crop in ipairs(cropsFolder:GetDescendants()) do
+
+        for _, crop in ipairs(targetFolder:GetDescendants()) do
             if not _G.AutoHarvest then break end
             
-            -- Kiểm tra xem có ProximityPrompt thu hoạch không
             if crop:IsA("ProximityPrompt") and (crop.Name:lower():find("harvest") or crop.ObjectText:lower():find("harvest") or crop.ActionText:lower():find("harvest")) then
                 fireproximityprompt(crop)
                 count = count + 1
                 
-                -- Giới hạn số lượng trái theo Input của người dùng trong 1 khung hình/chu kỳ
+                -- Giới hạn số trái mỗi khung hình theo Input
                 if count >= _G.FruitBatchLimit then
                     break
                 end
@@ -35,17 +79,18 @@ local function processHarvest()
     end)
 end
 
+-- Vòng lặp Auto Harvest
 task.spawn(function()
     while true do
         if _G.AutoHarvest then
             processHarvest()
         end
-        task.wait(0.001)
+        task.wait(0.1)
     end
 end)
 
 -- ==========================================
--- 2. HÀM TỰ ĐỘNG NHẶT HẠT GIỐNG (AUTO COLLECT SEED)
+-- 3. HÀM TỰ ĐỘNG NHẶT HẠT GIỐNG (AUTO COLLECT SEED)
 -- ==========================================
 local function moveToAndPick(targetPos, prompt)
     local character = LocalPlayer.Character
@@ -60,7 +105,7 @@ local function moveToAndPick(targetPos, prompt)
     local timeWaited = 0
     while (rootPart.Position - targetPos).Magnitude > 4 and timeWaited < 2 do
         if not _G.AutoCollectSeed then break end
-        task.wait(0.01)
+        task.wait(0.1)
         timeWaited = timeWaited + 0.1
     end
 
@@ -91,35 +136,34 @@ task.spawn(function()
                 end
             end)
         end
-        task.wait(0.03)
+        task.wait(0.3)
     end
 end)
 
 -- ==========================================
--- 3. GIAO DIỆN PANEL GEMINI GAG2 (UI)
+-- 4. GIAO DIỆN PANEL GEMINI GAG2 (UI)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
-local UICorner = Instance.new("UICorner")
+local PlotStatus = Instance.new("TextLabel")
 
--- Khai báo khung Input & Buttons
 local FruitInput = Instance.new("TextBox")
 local HarvestBtn = Instance.new("TextButton")
 local CollectBtn = Instance.new("TextButton")
 
-ScreenGui.Name = "GeminiGAG2Panel"
+ScreenGui.Name = "GeminiGAG2Panel_AutoTrack"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
--- Khung chính của Panel
+-- Khung chính
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-MainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 210)
+MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
+MainFrame.Size = UDim2.new(0, 230, 0, 250)
 MainFrame.Active = true
-MainFrame.Draggable = true -- Kéo thả Panel thoải mái trên màn hình
+MainFrame.Draggable = true
 
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
@@ -139,14 +183,37 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = Title
 
--- Ô Nhập Số Lượng Trái (Fruit Input)
+-- Nhãn hiển thị trạng thái Plot
+PlotStatus.Name = "PlotStatus"
+PlotStatus.Parent = MainFrame
+PlotStatus.BackgroundTransparency = 1
+PlotStatus.Position = UDim2.new(0.05, 0, 0.16, 0)
+PlotStatus.Size = UDim2.new(0.9, 0, 0, 20)
+PlotStatus.Font = Enum.Font.SourceSansItalic
+PlotStatus.Text = "Plot: Standby..."
+PlotStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
+PlotStatus.TextSize = 14
+
+-- Hàm cập nhật Plot Status UI
+local function updatePlotUI()
+    _G.MyPlot = findMyPlot()
+    if _G.MyPlot then
+        PlotStatus.Text = "Plot: " .. _G.MyPlot.Name
+        PlotStatus.TextColor3 = Color3.fromRGB(50, 255, 100)
+    else
+        PlotStatus.Text = "Plot: Không tìm thấy"
+        PlotStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+end
+
+-- Input Số Lượng Trái
 FruitInput.Name = "FruitInput"
 FruitInput.Parent = MainFrame
 FruitInput.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-FruitInput.Position = UDim2.new(0.08, 0, 0.23, 0)
+FruitInput.Position = UDim2.new(0.08, 0, 0.27, 0)
 FruitInput.Size = UDim2.new(0.84, 0, 0, 35)
 FruitInput.Font = Enum.Font.SourceSans
-FruitInput.PlaceholderText = "Số trái / khung (Ví dụ: 1, 2...)"
+FruitInput.PlaceholderText = "Số trái / khung (1, 2...)"
 FruitInput.Text = "1"
 FruitInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 FruitInput.TextSize = 14
@@ -164,11 +231,11 @@ FruitInput.FocusLost:Connect(function()
     end
 end)
 
--- Nút Auto Harvest
+-- Nút Auto Harvest (Đã tích hợp Auto Tracker)
 HarvestBtn.Name = "HarvestBtn"
 HarvestBtn.Parent = MainFrame
 HarvestBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-HarvestBtn.Position = UDim2.new(0.08, 0, 0.45, 0)
+HarvestBtn.Position = UDim2.new(0.08, 0, 0.46, 0)
 HarvestBtn.Size = UDim2.new(0.84, 0, 0, 35)
 HarvestBtn.Font = Enum.Font.SourceSansBold
 HarvestBtn.Text = "Auto Harvest: OFF"
@@ -181,7 +248,11 @@ HarvestCorner.Parent = HarvestBtn
 
 HarvestBtn.MouseButton1Click:Connect(function()
     _G.AutoHarvest = not _G.AutoHarvest
+    
     if _G.AutoHarvest then
+        -- TỰ ĐỘNG TRACK PLOT NGAY KHI BẤM BẬT
+        updatePlotUI()
+        
         HarvestBtn.Text = "Auto Harvest: ON"
         HarvestBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
     else
@@ -194,7 +265,7 @@ end)
 CollectBtn.Name = "CollectBtn"
 CollectBtn.Parent = MainFrame
 CollectBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-CollectBtn.Position = UDim2.new(0.08, 0, 0.67, 0)
+CollectBtn.Position = UDim2.new(0.08, 0, 0.65, 0)
 CollectBtn.Size = UDim2.new(0.84, 0, 0, 35)
 CollectBtn.Font = Enum.Font.SourceSansBold
 CollectBtn.Text = "Auto Collect Seed: OFF"
