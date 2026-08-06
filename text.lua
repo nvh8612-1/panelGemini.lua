@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 -- Các biến trạng thái toàn cục
@@ -10,9 +11,9 @@ _G.HideMePlot = false
 _G.HideAllGarden = false
 _G.MyPlot = nil
 
--- Lưu trữ dữ liệu vườn để Ẩn / Hiện phía Client
-local hiddenMyPlotCache = nil
-local hiddenAllPlotsCache = {}
+-- Cache thuộc tính gốc để phục hồi khi hiện lại vườn
+local originalTransparencyCache = {}
+local originalCanCollideCache = {}
 
 -- ==========================================
 -- 1. HÀM TRACKER TỰ ĐỘNG QUÉT PLOT CỦA BẠN
@@ -56,43 +57,53 @@ local function findMyPlot()
 end
 
 -- ==========================================
--- 2. HÀM XỬ LÝ ẨN VƯỜN (HIDE ME & HIDE ALL)
+-- 2. HÀM ẨN VƯỜN (TRONG SUỐT & TẮT VA CHẠM)
 -- ==========================================
--- Ẩn chỉ duy nhất vườn của bản thân (Hide Me Garden)
-local function toggleMePlot(state)
-    if not _G.MyPlot then _G.MyPlot = findMyPlot() end
-    if not _G.MyPlot then return end
-
-    if state then
-        if not hiddenMyPlotCache then
-            hiddenMyPlotCache = _G.MyPlot.Parent
-            _G.MyPlot.Parent = nil
-        end
-    else
-        if hiddenMyPlotCache then
-            _G.MyPlot.Parent = hiddenMyPlotCache
-            hiddenMyPlotCache = nil
+local function setPlotVisible(plot, state)
+    if not plot then return end
+    
+    for _, obj in ipairs(plot:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            if state then -- Ẩn vườn
+                if originalTransparencyCache[obj] == nil then
+                    originalTransparencyCache[obj] = obj.Transparency
+                    originalCanCollideCache[obj] = obj.CanCollide
+                end
+                obj.Transparency = 1
+                obj.CanCollide = false
+            else -- Hiện lại vườn
+                if originalTransparencyCache[obj] ~= nil then
+                    obj.Transparency = originalTransparencyCache[obj]
+                    obj.CanCollide = originalCanCollideCache[obj]
+                end
+            end
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            if state then
+                if originalTransparencyCache[obj] == nil then
+                    originalTransparencyCache[obj] = obj.Transparency
+                end
+                obj.Transparency = 1
+            else
+                if originalTransparencyCache[obj] ~= nil then
+                    obj.Transparency = originalTransparencyCache[obj]
+                end
+            end
         end
     end
 end
 
--- Ẩn TOÀN BỘ tất cả các vườn (Hide All Garden)
+local function toggleMePlot(state)
+    if not _G.MyPlot then _G.MyPlot = findMyPlot() end
+    if not _G.MyPlot then return end
+    setPlotVisible(_G.MyPlot, state)
+end
+
 local function toggleAllGarden(state)
     local gardens = workspace:FindFirstChild("Gardens")
     if not gardens then return end
 
     for _, plot in ipairs(gardens:GetChildren()) do
-        if state then
-            if not hiddenAllPlotsCache[plot] then
-                hiddenAllPlotsCache[plot] = plot.Parent
-                plot.Parent = nil
-            end
-        else
-            if hiddenAllPlotsCache[plot] then
-                plot.Parent = hiddenAllPlotsCache[plot]
-                hiddenAllPlotsCache[plot] = nil
-            end
-        end
+        setPlotVisible(plot, state)
     end
 end
 
@@ -176,7 +187,6 @@ task.spawn(function()
                             or (item:IsA("BasePart") and item)
 
                         if targetPart then
-                            -- GIỚI HẠN BÁN KÍNH 30 MÉT (~ 100 Studs)
                             local distance = (rootPart.Position - targetPart.Position).Magnitude
                             if distance <= 100 then
                                 local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -201,6 +211,9 @@ local Title = Instance.new("TextLabel")
 local MinimizeBtn = Instance.new("TextButton")
 local ContentFrame = Instance.new("Frame")
 
+local OpenCloseBtn = Instance.new("TextButton")
+local OpenCorner = Instance.new("UICorner")
+
 local PlotStatus = Instance.new("TextLabel")
 local FruitInput = Instance.new("TextBox")
 local HarvestBtn = Instance.new("TextButton")
@@ -208,15 +221,31 @@ local CollectBtn = Instance.new("TextButton")
 local HideAllBtn = Instance.new("TextButton")
 local HideMeBtn = Instance.new("TextButton")
 
-ScreenGui.Name = "GeminiGAG2Panel_Final"
+ScreenGui.Name = "GeminiGAG2Panel_Perfect"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
+
+-- Nút tròn nổi 'G' để Ẩn / Hiện toàn bộ Menu
+OpenCloseBtn.Name = "OpenCloseBtn"
+OpenCloseBtn.Parent = ScreenGui
+OpenCloseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+OpenCloseBtn.Position = UDim2.new(0.02, 0, 0.15, 0)
+OpenCloseBtn.Size = UDim2.new(0, 35, 0, 35)
+OpenCloseBtn.Font = Enum.Font.SourceSansBold
+OpenCloseBtn.Text = "G"
+OpenCloseBtn.TextColor3 = Color3.fromRGB(0, 225, 255)
+OpenCloseBtn.TextSize = 20
+OpenCloseBtn.Active = true
+OpenCloseBtn.Draggable = true
+
+OpenCorner.CornerRadius = UDim.new(1, 0)
+OpenCorner.Parent = OpenCloseBtn
 
 -- Main Frame
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+MainFrame.Position = UDim2.new(0.08, 0, 0.2, 0)
 MainFrame.Size = UDim2.new(0, 230, 0, 330)
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -241,7 +270,7 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = Title
 
--- Minimize Button (-) / (^)
+-- Nút Thu Gọn (-) và Xòe Ra (^)
 MinimizeBtn.Name = "MinimizeBtn"
 MinimizeBtn.Parent = Title
 MinimizeBtn.BackgroundTransparency = 1
@@ -416,20 +445,31 @@ HideMeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Logic Thu Gọn (-) / (^)
+-- LOGIC THU GỌN (-) VÀ XÒE RA (^)
 local isMinimized = false
-
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    
     if isMinimized then
         ContentFrame.Visible = false
-        MainFrame:TweenSize(UDim2.new(0, 230, 0, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.2, true)
+        MainFrame:TweenSize(UDim2.new(0, 230, 0, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.15, true)
         MinimizeBtn.Text = "^"
     else
-        MainFrame:TweenSize(UDim2.new(0, 230, 0, 330), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.2, true, function()
+        MainFrame:TweenSize(UDim2.new(0, 230, 0, 330), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.15, true, function()
             ContentFrame.Visible = true
         end)
         MinimizeBtn.Text = "-"
+    end
+end)
+
+-- LOGIC ẨN / HIỆN TOÀN BỘ MENU (NÚT NỔI 'G' HOẶC PHÍM 'K')
+local function toggleUI()
+    MainFrame.Visible = not MainFrame.Visible
+end
+
+OpenCloseBtn.MouseButton1Click:Connect(toggleUI)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.K then
+        toggleUI()
     end
 end)
