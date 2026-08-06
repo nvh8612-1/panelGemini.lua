@@ -3,6 +3,19 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
+-- ==========================================
+-- 0. HỆ THỐNG TỰ ĐỘNG DIỆT SCRIPT CŨ (KILL SWITCH)
+-- ==========================================
+_G.ScriptVersion = (_G.ScriptVersion or 0) + 1
+local currentVersion = _G.ScriptVersion
+
+-- Xóa UI cũ nếu đang tồn tại
+pcall(function()
+    if LocalPlayer.PlayerGui:FindFirstChild("GeminiGAG2Panel_5Options") then
+        LocalPlayer.PlayerGui["GeminiGAG2Panel_5Options"]:Destroy()
+    end
+end)
+
 -- Các biến trạng thái toàn cục
 _G.FruitBatchLimit = 1
 _G.AutoHarvest = false
@@ -12,7 +25,7 @@ _G.HideAllGarden = false
 _G.FPSBooster = false
 _G.MyPlot = nil
 
--- Cache thuộc tính gốc để phục hồi khi hiện lại vườn
+-- Cache thuộc tính gốc
 local originalTransparencyCache = {}
 local originalCanCollideCache = {}
 
@@ -63,18 +76,17 @@ end
 local function setPlotVisible(plot, state)
     if not plot then return end
     
-    -- Quét toàn bộ mọi vật thể thuộc Plot (Bao gồm Plants và Fruits)
     for _, obj in ipairs(plot:GetDescendants()) do
         pcall(function()
             if obj:IsA("BasePart") then
-                if state then -- Tàng hình
+                if state then
                     if originalTransparencyCache[obj] == nil then
                         originalTransparencyCache[obj] = obj.Transparency
                         originalCanCollideCache[obj] = obj.CanCollide
                     end
                     obj.Transparency = 1
                     obj.CanCollide = false
-                else -- Hiện lại
+                else
                     if originalTransparencyCache[obj] ~= nil then
                         obj.Transparency = originalTransparencyCache[obj]
                         obj.CanCollide = originalCanCollideCache[obj]
@@ -133,9 +145,9 @@ local function toggleAllGarden(state)
     end
 end
 
--- Tự động áp dụng lại tàng hình nếu có trái mới mọc ra trong Plants/Fruits khi đang bật Hide
+-- Vòng lặp ẩn tự động diệt nếu có bản script mới hơn được execute
 task.spawn(function()
-    while true do
+    while _G.ScriptVersion == currentVersion do
         task.wait(1)
         if _G.HideAllGarden then
             toggleAllGarden(true)
@@ -167,7 +179,7 @@ local function processHarvest()
 end
 
 task.spawn(function()
-    while true do
+    while _G.ScriptVersion == currentVersion do
         if _G.AutoHarvest then processHarvest() end
         task.wait(0.1)
     end
@@ -195,7 +207,7 @@ local function tweenToAndPick(targetPos, prompt)
     local completed = false
     tween.Completed:Connect(function() completed = true end)
 
-    while not completed do
+    while not completed and _G.ScriptVersion == currentVersion do
         if not _G.AutoCollectSeed then
             tween:Cancel()
             break
@@ -203,13 +215,13 @@ local function tweenToAndPick(targetPos, prompt)
         task.wait(0.05)
     end
 
-    if prompt and _G.AutoCollectSeed then
+    if prompt and _G.AutoCollectSeed and _G.ScriptVersion == currentVersion then
         fireproximityprompt(prompt)
     end
 end
 
 task.spawn(function()
-    while true do
+    while _G.ScriptVersion == currentVersion do
         if _G.AutoCollectSeed then
             pcall(function()
                 local character = LocalPlayer.Character
@@ -218,7 +230,7 @@ task.spawn(function()
 
                 if rootPart and droppedFolder then
                     for _, item in ipairs(droppedFolder:GetChildren()) do
-                        if not _G.AutoCollectSeed then break end
+                        if not _G.AutoCollectSeed or _G.ScriptVersion ~= currentVersion then break end
 
                         local targetPart = item:FindFirstChild("PromptAnchor") 
                             or item:FindFirstChildWhichIsA("BasePart") 
@@ -306,8 +318,10 @@ local function enableFPSBooster()
     end
 
     game.DescendantAdded:Connect(function(v)
-        task.wait()
-        optimize(v)
+        if _G.ScriptVersion == currentVersion then
+            task.wait()
+            optimize(v)
+        end
     end)
 
     pcall(function()
@@ -336,13 +350,6 @@ local CollectBtn = Instance.new("TextButton")
 local HideAllBtn = Instance.new("TextButton")
 local HideMeBtn = Instance.new("TextButton")
 local FPSBtn = Instance.new("TextButton")
-
--- Xóa UI cũ nếu có
-pcall(function()
-    if LocalPlayer.PlayerGui:FindFirstChild("GeminiGAG2Panel_5Options") then
-        LocalPlayer.PlayerGui["GeminiGAG2Panel_5Options"]:Destroy()
-    end
-end)
 
 ScreenGui.Name = "GeminiGAG2Panel_5Options"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
