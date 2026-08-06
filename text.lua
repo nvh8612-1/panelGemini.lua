@@ -26,15 +26,6 @@ _G.MyPlot = nil
 
 local originalTransparencyCache = {}
 local originalCanCollideCache = {}
-local activeConnections = {}
-
--- Xóa kết nối Event cũ nếu có
-local function clearConnections()
-    for _, conn in ipairs(activeConnections) do
-        if conn then conn:Disconnect() end
-    end
-    activeConnections = {}
-end
 
 -- ==========================================
 -- 1. HÀM FIND MY PLOT
@@ -78,87 +69,64 @@ local function findMyPlot()
 end
 
 -- ==========================================
--- 2. HÀM TÀNG HÌNH MỘT VẬT THỂ MỚI (TỐI ƯU MƯỢT)
+-- 2. HÀM TÀNG HÌNH VƯỜN (ẨN 1 LẦN - MƯỢT 100%)
 -- ==========================================
-local function hideSingleObject(obj, state)
-    pcall(function()
-        if obj:IsA("BasePart") then
-            if state then
-                if originalTransparencyCache[obj] == nil then
-                    originalTransparencyCache[obj] = obj.Transparency
-                    originalCanCollideCache[obj] = obj.CanCollide
-                end
-                obj.Transparency = 1
-                obj.CanCollide = false
-            else
-                if originalTransparencyCache[obj] ~= nil then
-                    obj.Transparency = originalTransparencyCache[obj]
-                    obj.CanCollide = originalCanCollideCache[obj]
-                end
-            end
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            if state then
-                if originalTransparencyCache[obj] == nil then originalTransparencyCache[obj] = obj.Transparency end
-                obj.Transparency = 1
-            else
-                if originalTransparencyCache[obj] ~= nil then obj.Transparency = originalTransparencyCache[obj] end
-            end
-        elseif obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") or obj:IsA("Highlight") then
-            if state then
-                if originalTransparencyCache[obj] == nil then originalTransparencyCache[obj] = obj.Enabled end
-                obj.Enabled = false
-            else
-                if originalTransparencyCache[obj] ~= nil then obj.Enabled = originalTransparencyCache[obj] end
-            end
-        elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
-            if state then
-                if originalTransparencyCache[obj] == nil then originalTransparencyCache[obj] = obj.Enabled end
-                obj.Enabled = false
-            else
-                if originalTransparencyCache[obj] ~= nil then obj.Enabled = originalTransparencyCache[obj] end
-            end
-        end
-    end)
-end
-
 local function setPlotVisible(plot, state)
     if not plot then return end
+    
     for _, obj in ipairs(plot:GetDescendants()) do
-        hideSingleObject(obj, state)
-    end
-end
-
--- Lắng nghe khi có trái/cây mới mọc ra để tàng hình ngay lập tức (KHÔNG DÙNG LOOP VÌ SẼ LAG)
-local function setupAutoHideListener(plot)
-    if not plot then return end
-    local conn = plot.DescendantAdded:Connect(function(descendant)
-        if _G.ScriptVersion ~= currentVersion then return end
-        if _G.HideAllGarden or (_G.HideMePlot and plot == _G.MyPlot) then
-            task.wait() -- Đợi 1 frame nhỏ cho part load xong
-            hideSingleObject(descendant, true)
-            for _, child in ipairs(descendant:GetDescendants()) do
-                hideSingleObject(child, true)
+        pcall(function()
+            if obj:IsA("BasePart") then
+                if state then
+                    if originalTransparencyCache[obj] == nil then
+                        originalTransparencyCache[obj] = obj.Transparency
+                        originalCanCollideCache[obj] = obj.CanCollide
+                    end
+                    obj.Transparency = 1
+                    obj.CanCollide = false
+                else
+                    if originalTransparencyCache[obj] ~= nil then
+                        obj.Transparency = originalTransparencyCache[obj]
+                        obj.CanCollide = originalCanCollideCache[obj]
+                    end
+                end
+            elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                if state then
+                    if originalTransparencyCache[obj] == nil then originalTransparencyCache[obj] = obj.Transparency end
+                    obj.Transparency = 1
+                else
+                    if originalTransparencyCache[obj] ~= nil then obj.Transparency = originalTransparencyCache[obj] end
+                end
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") or obj:IsA("Highlight") then
+                if state then
+                    if originalTransparencyCache[obj] == nil then originalTransparencyCache[obj] = obj.Enabled end
+                    obj.Enabled = false
+                else
+                    if originalTransparencyCache[obj] ~= nil then obj.Enabled = originalTransparencyCache[obj] end
+                end
+            elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                if state then
+                    if originalTransparencyCache[obj] == nil then originalTransparencyCache[obj] = obj.Enabled end
+                    obj.Enabled = false
+                else
+                    if originalTransparencyCache[obj] ~= nil then obj.Enabled = originalTransparencyCache[obj] end
+                end
             end
-        end
-    end)
-    table.insert(activeConnections, conn)
+        end)
+    end
 end
 
 local function toggleMePlot(state)
     if not _G.MyPlot then _G.MyPlot = findMyPlot() end
     if not _G.MyPlot then return end
-    clearConnections()
     setPlotVisible(_G.MyPlot, state)
-    if state then setupAutoHideListener(_G.MyPlot) end
 end
 
 local function toggleAllGarden(state)
     local gardens = workspace:FindFirstChild("Gardens")
     if not gardens then return end
-    clearConnections()
     for _, plot in ipairs(gardens:GetChildren()) do
         setPlotVisible(plot, state)
-        if state then setupAutoHideListener(plot) end
     end
 end
 
