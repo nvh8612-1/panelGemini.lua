@@ -64,32 +64,34 @@ local function setPlotVisible(plot, state)
     if not plot then return end
     
     for _, obj in ipairs(plot:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            if state then -- Ẩn vườn
-                if originalTransparencyCache[obj] == nil then
-                    originalTransparencyCache[obj] = obj.Transparency
-                    originalCanCollideCache[obj] = obj.CanCollide
+        pcall(function()
+            if obj:IsA("BasePart") then
+                if state then -- Ẩn vườn
+                    if originalTransparencyCache[obj] == nil then
+                        originalTransparencyCache[obj] = obj.Transparency
+                        originalCanCollideCache[obj] = obj.CanCollide
+                    end
+                    obj.Transparency = 1
+                    obj.CanCollide = false
+                else -- Hiện lại vườn
+                    if originalTransparencyCache[obj] ~= nil then
+                        obj.Transparency = originalTransparencyCache[obj]
+                        obj.CanCollide = originalCanCollideCache[obj]
+                    end
                 end
-                obj.Transparency = 1
-                obj.CanCollide = false
-            else -- Hiện lại vườn
-                if originalTransparencyCache[obj] ~= nil then
-                    obj.Transparency = originalTransparencyCache[obj]
-                    obj.CanCollide = originalCanCollideCache[obj]
+            elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                if state then
+                    if originalTransparencyCache[obj] == nil then
+                        originalTransparencyCache[obj] = obj.Transparency
+                    end
+                    obj.Transparency = 1
+                else
+                    if originalTransparencyCache[obj] ~= nil then
+                        obj.Transparency = originalTransparencyCache[obj]
+                    end
                 end
             end
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            if state then
-                if originalTransparencyCache[obj] == nil then
-                    originalTransparencyCache[obj] = obj.Transparency
-                end
-                obj.Transparency = 1
-            else
-                if originalTransparencyCache[obj] ~= nil then
-                    obj.Transparency = originalTransparencyCache[obj]
-                end
-            end
-        end
+        end)
     end
 end
 
@@ -204,9 +206,8 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 5. HÀM FPS BOOSTER
+-- 5. HÀM FPS BOOSTER (SAFE EXECUTE)
 -- ==========================================
-local fpsConn = nil
 local function enableFPSBooster()
     local Lighting = game:GetService("Lighting")
     local Terrain = workspace.Terrain
@@ -222,14 +223,14 @@ local function enableFPSBooster()
         if Lighting:FindFirstChild("SunRays") then Lighting.SunRays.Enabled = false end
         if Lighting:FindFirstChild("DepthOfField") then Lighting.DepthOfField.Enabled = false end
         if Lighting:FindFirstChild("Blur") then Lighting.Blur.Enabled = false end
-    end)[cite: 1]
+    end)
 
     pcall(function()
         Terrain.WaterWaveSize = 0
         Terrain.WaterWaveSpeed = 0
         Terrain.WaterReflectance = 0
         Terrain.WaterTransparency = 1
-    end)[cite: 1]
+    end)
 
     local function optimize(obj)
         pcall(function()
@@ -262,21 +263,24 @@ local function enableFPSBooster()
             elseif obj:IsA("SurfaceAppearance") then
                 obj:Destroy()
             end
-        end)[cite: 1]
+        end)
     end
 
     for _, v in ipairs(game:GetDescendants()) do
         optimize(v)
-    end[cite: 1]
+    end
 
-    fpsConn = game.DescendantAdded:Connect(function(v)
+    game.DescendantAdded:Connect(function(v)
         task.wait()
         optimize(v)
-    end)[cite: 1]
+    end)
 
+    -- An toàn cho Executor yếu không dùng được settings()
     pcall(function()
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-    end)[cite: 1]
+        if settings and settings() and settings().Rendering then
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        end
+    end)
 end
 
 -- ==========================================
@@ -298,6 +302,13 @@ local CollectBtn = Instance.new("TextButton")
 local HideAllBtn = Instance.new("TextButton")
 local HideMeBtn = Instance.new("TextButton")
 local FPSBtn = Instance.new("TextButton")
+
+-- Xóa UI cũ nếu có
+pcall(function()
+    if LocalPlayer.PlayerGui:FindFirstChild("GeminiGAG2Panel_5Options") then
+        LocalPlayer.PlayerGui["GeminiGAG2Panel_5Options"]:Destroy()
+    end
+end)
 
 ScreenGui.Name = "GeminiGAG2Panel_5Options"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
