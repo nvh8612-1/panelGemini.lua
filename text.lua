@@ -9,6 +9,7 @@ _G.AutoHarvest = false
 _G.AutoCollectSeed = false
 _G.HideMePlot = false
 _G.HideAllGarden = false
+_G.FPSBooster = false
 _G.MyPlot = nil
 
 -- Cache thuộc tính gốc để phục hồi khi hiện lại vườn
@@ -203,7 +204,83 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 5. GIAO DIỆN PANEL GEMINI GAG2 (UI)
+-- 5. HÀM FPS BOOSTER
+-- ==========================================
+local fpsConn = nil
+local function enableFPSBooster()
+    local Lighting = game:GetService("Lighting")
+    local Terrain = workspace.Terrain
+
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.Brightness = 1
+        Lighting.EnvironmentDiffuseScale = 0
+        Lighting.EnvironmentSpecularScale = 0
+        if Lighting:FindFirstChild("Bloom") then Lighting.Bloom.Enabled = false end
+        if Lighting:FindFirstChild("ColorCorrection") then Lighting.ColorCorrection.Enabled = false end
+        if Lighting:FindFirstChild("SunRays") then Lighting.SunRays.Enabled = false end
+        if Lighting:FindFirstChild("DepthOfField") then Lighting.DepthOfField.Enabled = false end
+        if Lighting:FindFirstChild("Blur") then Lighting.Blur.Enabled = false end
+    end)[cite: 1]
+
+    pcall(function()
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 1
+    end)[cite: 1]
+
+    local function optimize(obj)
+        pcall(function()
+            if obj:IsA("ParticleEmitter")
+            or obj:IsA("Trail")
+            or obj:IsA("Beam")
+            or obj:IsA("Smoke")
+            or obj:IsA("Fire")
+            or obj:IsA("Sparkles") then
+                obj.Enabled = false
+
+            elseif obj:IsA("Explosion") then
+                obj.BlastPressure = 0
+                obj.BlastRadius = 0
+
+            elseif obj:IsA("BasePart") then
+                obj.CastShadow = false
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.Reflectance = 0
+
+            elseif obj:IsA("Texture") or obj:IsA("Decal") then
+                obj.Texture = ""
+
+            elseif obj:IsA("MeshPart") then
+                obj.TextureID = ""
+
+            elseif obj:IsA("SpecialMesh") then
+                obj.TextureId = ""
+
+            elseif obj:IsA("SurfaceAppearance") then
+                obj:Destroy()
+            end
+        end)[cite: 1]
+    end
+
+    for _, v in ipairs(game:GetDescendants()) do
+        optimize(v)
+    end[cite: 1]
+
+    fpsConn = game.DescendantAdded:Connect(function(v)
+        task.wait()
+        optimize(v)
+    end)[cite: 1]
+
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    end)[cite: 1]
+end
+
+-- ==========================================
+-- 6. GIAO DIỆN PANEL GEMINI GAG2 (UI)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
@@ -220,8 +297,9 @@ local HarvestBtn = Instance.new("TextButton")
 local CollectBtn = Instance.new("TextButton")
 local HideAllBtn = Instance.new("TextButton")
 local HideMeBtn = Instance.new("TextButton")
+local FPSBtn = Instance.new("TextButton")
 
-ScreenGui.Name = "GeminiGAG2Panel_Perfect"
+ScreenGui.Name = "GeminiGAG2Panel_5Options"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
@@ -246,7 +324,7 @@ MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.Position = UDim2.new(0.08, 0, 0.2, 0)
-MainFrame.Size = UDim2.new(0, 230, 0, 330)
+MainFrame.Size = UDim2.new(0, 230, 0, 375)
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.ClipsDescendants = true
@@ -314,8 +392,8 @@ end
 FruitInput.Name = "FruitInput"
 FruitInput.Parent = ContentFrame
 FruitInput.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-FruitInput.Position = UDim2.new(0.08, 0, 0.11, 0)
-FruitInput.Size = UDim2.new(0.84, 0, 0, 30)
+FruitInput.Position = UDim2.new(0.08, 0, 0.09, 0)
+FruitInput.Size = UDim2.new(0.84, 0, 0, 28)
 FruitInput.Font = Enum.Font.SourceSans
 FruitInput.PlaceholderText = "Số trái / khung (1, 2...)"
 FruitInput.Text = "1"
@@ -339,8 +417,8 @@ end)
 HarvestBtn.Name = "HarvestBtn"
 HarvestBtn.Parent = ContentFrame
 HarvestBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-HarvestBtn.Position = UDim2.new(0.08, 0, 0.25, 0)
-HarvestBtn.Size = UDim2.new(0.84, 0, 0, 30)
+HarvestBtn.Position = UDim2.new(0.08, 0, 0.20, 0)
+HarvestBtn.Size = UDim2.new(0.84, 0, 0, 28)
 HarvestBtn.Font = Enum.Font.SourceSansBold
 HarvestBtn.Text = "Auto Harvest: OFF"
 HarvestBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -366,8 +444,8 @@ end)
 CollectBtn.Name = "CollectBtn"
 CollectBtn.Parent = ContentFrame
 CollectBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-CollectBtn.Position = UDim2.new(0.08, 0, 0.39, 0)
-CollectBtn.Size = UDim2.new(0.84, 0, 0, 30)
+CollectBtn.Position = UDim2.new(0.08, 0, 0.31, 0)
+CollectBtn.Size = UDim2.new(0.84, 0, 0, 28)
 CollectBtn.Font = Enum.Font.SourceSansBold
 CollectBtn.Text = "Auto Collect Seed (30m): OFF"
 CollectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -392,8 +470,8 @@ end)
 HideAllBtn.Name = "HideAllBtn"
 HideAllBtn.Parent = ContentFrame
 HideAllBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-HideAllBtn.Position = UDim2.new(0.08, 0, 0.53, 0)
-HideAllBtn.Size = UDim2.new(0.84, 0, 0, 30)
+HideAllBtn.Position = UDim2.new(0.08, 0, 0.42, 0)
+HideAllBtn.Size = UDim2.new(0.84, 0, 0, 28)
 HideAllBtn.Font = Enum.Font.SourceSansBold
 HideAllBtn.Text = "Hide All Garden: OFF"
 HideAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -420,8 +498,8 @@ end)
 HideMeBtn.Name = "HideMeBtn"
 HideMeBtn.Parent = ContentFrame
 HideMeBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-HideMeBtn.Position = UDim2.new(0.08, 0, 0.67, 0)
-HideMeBtn.Size = UDim2.new(0.84, 0, 0, 30)
+HideMeBtn.Position = UDim2.new(0.08, 0, 0.53, 0)
+HideMeBtn.Size = UDim2.new(0.84, 0, 0, 28)
 HideMeBtn.Font = Enum.Font.SourceSansBold
 HideMeBtn.Text = "Hide Me Garden: OFF"
 HideMeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -445,6 +523,30 @@ HideMeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Button 5: FPS Booster
+FPSBtn.Name = "FPSBtn"
+FPSBtn.Parent = ContentFrame
+FPSBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+FPSBtn.Position = UDim2.new(0.08, 0, 0.64, 0)
+FPSBtn.Size = UDim2.new(0.84, 0, 0, 28)
+FPSBtn.Font = Enum.Font.SourceSansBold
+FPSBtn.Text = "FPS Booster: OFF"
+FPSBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FPSBtn.TextSize = 14
+
+local FPSCorner = Instance.new("UICorner")
+FPSCorner.CornerRadius = UDim.new(0, 6)
+FPSCorner.Parent = FPSBtn
+
+FPSBtn.MouseButton1Click:Connect(function()
+    if not _G.FPSBooster then
+        _G.FPSBooster = true
+        enableFPSBooster()
+        FPSBtn.Text = "FPS Booster: ON"
+        FPSBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+    end
+end)
+
 -- LOGIC THU GỌN (-) VÀ XÒE RA (^)
 local isMinimized = false
 MinimizeBtn.MouseButton1Click:Connect(function()
@@ -454,7 +556,7 @@ MinimizeBtn.MouseButton1Click:Connect(function()
         MainFrame:TweenSize(UDim2.new(0, 230, 0, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.15, true)
         MinimizeBtn.Text = "^"
     else
-        MainFrame:TweenSize(UDim2.new(0, 230, 0, 330), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.15, true, function()
+        MainFrame:TweenSize(UDim2.new(0, 230, 0, 375), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.15, true, function()
             ContentFrame.Visible = true
         end)
         MinimizeBtn.Text = "-"
