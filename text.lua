@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ==========================================
@@ -15,7 +16,7 @@ pcall(function()
     end
 end)
 
--- Biến trạng thái
+-- Biến trạng thái toàn cục
 _G.FruitBatchLimit = 1
 _G.AutoHarvest = false
 _G.AutoCollectSeed = false
@@ -69,7 +70,7 @@ local function findMyPlot()
 end
 
 -- ==========================================
--- 2. HÀM TÀNG HÌNH VƯỜN (ẨN 1 LẦN - MƯỢT 100%)
+-- 2. HÀM TÀNG HÌNH VƯỜN (MƯỢT 100%)
 -- ==========================================
 local function setPlotVisible(plot, state)
     if not plot then return end
@@ -131,15 +132,18 @@ local function toggleAllGarden(state)
 end
 
 -- ==========================================
--- 3. HÀM THU HOẠCH FIX LỖI PROXIMITYPROMPT
+-- 3. HÀM THU HOẠCH CHUẨN ĐƯỜNG DẪN (HarvestPrompt)
 -- ==========================================
-local function firePrompt(prompt)
-    if not prompt or not prompt:IsA("ProximityPrompt") then return end
+local function triggerHarvestPrompt(prompt)
+    if not prompt then return end
     pcall(function()
         prompt.HoldDuration = 0
         prompt.MaxActivationDistance = 9999
         prompt.RequiresLineOfSight = false
-        if fireproximityprompt then
+        
+        if fireHarvestPrompt then
+            fireHarvestPrompt(prompt)
+        elseif fireproximityprompt then
             fireproximityprompt(prompt)
         end
     end)
@@ -148,25 +152,33 @@ end
 local function processHarvest()
     pcall(function()
         if not _G.MyPlot then _G.MyPlot = findMyPlot() end
-        local targetFolder = _G.MyPlot or workspace:FindFirstChild("Gardens") or workspace
+        local targetPlot = _G.MyPlot or workspace:FindFirstChild("Gardens"):FindFirstChildOfClass("Model")
+        if not targetPlot then return end
+
+        local plants = targetPlot:FindFirstChild("Plants")
+        if not plants then return end
+
         local count = 0
 
-        for _, crop in ipairs(targetFolder:GetDescendants()) do
+        for _, plant in ipairs(plants:GetChildren()) do
             if not _G.AutoHarvest then break end
             
-            if crop:IsA("ProximityPrompt") then
-                local actionName = crop.ActionText:lower()
-                local objectName = crop.ObjectText:lower()
-                local promptName = crop.Name:lower()
+            local fruits = plant:FindFirstChild("Fruits")
+            if fruits then
+                for _, fruit in ipairs(fruits:GetChildren()) do
+                    if not _G.AutoHarvest then break end
 
-                if actionName:find("harvest") or actionName:find("pick") or actionName:find("collect") or
-                   objectName:find("harvest") or promptName:find("harvest") or promptName:find("prompt") then
-                    
-                    firePrompt(crop)
-                    count = count + 1
-                    if count >= _G.FruitBatchLimit then break end
+                    local harvestPart = fruit:FindFirstChild("HarvestPart")
+                    local harvestPrompt = harvestPart and harvestPart:FindFirstChild("HarvestPrompt")
+
+                    if harvestPrompt then
+                        triggerHarvestPrompt(harvestPrompt)
+                        count = count + 1
+                        if count >= _G.FruitBatchLimit then break end
+                    end
                 end
             end
+            if count >= _G.FruitBatchLimit then break end
         end
     end)
 end
@@ -174,13 +186,28 @@ end
 task.spawn(function()
     while _G.ScriptVersion == currentVersion do
         if _G.AutoHarvest then processHarvest() end
-        task.wait(0.15)
+        task.wait(0.1)
     end
 end)
 
 -- ==========================================
--- 4. HÀM NHẶT HẠT GIỐNG BÁN KÍNH 30M (TWEEN)
+-- 4. HÀM NHẶT HẠT GIỐNG CHUẨN ĐƯỜNG DẪN (PickupPrompt)
 -- ==========================================
+local function triggerPickupPrompt(prompt)
+    if not prompt then return end
+    pcall(function()
+        prompt.HoldDuration = 0
+        prompt.MaxActivationDistance = 9999
+        prompt.RequiresLineOfSight = false
+        
+        if firePickupPrompt then
+            firePickupPrompt(prompt)
+        elseif fireproximityprompt then
+            fireproximityprompt(prompt)
+        end
+    end)
+end
+
 local function tweenToAndPick(targetPos, prompt)
     local character = LocalPlayer.Character
     if not character then return end
@@ -209,7 +236,7 @@ local function tweenToAndPick(targetPos, prompt)
     end
 
     if prompt and _G.AutoCollectSeed and _G.ScriptVersion == currentVersion then
-        firePrompt(prompt)
+        triggerPickupPrompt(prompt)
     end
 end
 
@@ -225,15 +252,13 @@ task.spawn(function()
                     for _, item in ipairs(droppedFolder:GetChildren()) do
                         if not _G.AutoCollectSeed or _G.ScriptVersion ~= currentVersion then break end
 
-                        local targetPart = item:FindFirstChild("PromptAnchor") 
-                            or item:FindFirstChildWhichIsA("BasePart") 
-                            or (item:IsA("BasePart") and item)
+                        local promptAnchor = item:FindFirstChild("PromptAnchor")
+                        local pickupPrompt = promptAnchor and promptAnchor:FindFirstChild("PickupPrompt")
 
-                        if targetPart then
-                            local distance = (rootPart.Position - targetPart.Position).Magnitude
+                        if promptAnchor and pickupPrompt then
+                            local distance = (rootPart.Position - promptAnchor.Position).Magnitude
                             if distance <= 100 then
-                                local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
-                                tweenToAndPick(targetPart.Position, prompt)
+                                tweenToAndPick(promptAnchor.Position, pickupPrompt)
                                 task.wait(0.1)
                             end
                         end
@@ -325,7 +350,7 @@ local function enableFPSBooster()
 end
 
 -- ==========================================
--- 6. GIAO DIỆN PANEL GEMINI GAG2 (UI)
+-- 6. GIAO DIỆN PANEL GEMINI (UI BẢN MỚI)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
@@ -378,20 +403,36 @@ local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
--- Title Bar
+-- Title Bar (Panel Gemini | FPS)
 Title.Name = "Title"
 Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.Font = Enum.Font.SourceSansBold
-Title.Text = "  Gemini GAG2 Panel"
+Title.Text = "  Panel Gemini | FPS: --"
 Title.TextColor3 = Color3.fromRGB(0, 225, 255)
-Title.TextSize = 16
+Title.TextSize = 15
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
 local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = Title
+
+-- CẬP NHẬT FPS LÊN TIÊU ĐỀ
+local lastTime = tick()
+local frameCount = 0
+
+RunService.RenderStepped:Connect(function()
+    if _G.ScriptVersion ~= currentVersion then return end
+    frameCount = frameCount + 1
+    local currentTime = tick()
+    if currentTime - lastTime >= 1 then
+        local fps = math.floor(frameCount / (currentTime - lastTime))
+        Title.Text = "  Panel Gemini | FPS: " .. tostring(fps)
+        frameCount = 0
+        lastTime = currentTime
+    end
+end)
 
 -- Nút Thu Gọn (-) và Xòe Ra (^)
 MinimizeBtn.Name = "MinimizeBtn"
