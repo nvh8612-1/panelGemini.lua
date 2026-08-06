@@ -1,8 +1,15 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Track Exact Plot)
+-- PANEL GEMINI - GAG2 (WindUI + Full Logic Auto Harvest & Seed)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local StatsService = game:GetService("Stats")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Link WindUI
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 -- 1. TẠO WINDOW CHÍNH
@@ -21,6 +28,62 @@ local MainTab = Window:Tab({ Title = "Main", Icon = "home" })
 local AutoTab = Window:Tab({ Title = "Auto", Icon = "repeat" })
 local MiscTab = Window:Tab({ Title = "Misc", Icon = "sliders" })
 
+-- =========================================================
+-- LOGIC DÒ & LƯU PLOT (TRUYẾN TỪ BẢN CŨ SANG)
+-- =========================================================
+_G.MyPlot = nil
+local SavedPlotName = "Không tìm thấy"
+
+local function findMyPlot()
+    local gardens = workspace:FindFirstChild("Gardens")
+    if not gardens then return nil end
+
+    -- 1. Kiểm tra chính xác theo Owner / Name
+    for _, plot in ipairs(gardens:GetChildren()) do
+        local ownerValue = plot:FindFirstChild("Owner") or plot:FindFirstChild("OwnerName") or plot:FindFirstChild("Player")
+        if ownerValue then
+            if (ownerValue:IsA("StringValue") and ownerValue.Value == LocalPlayer.Name) or
+               (ownerValue:IsA("ObjectValue") and ownerValue.Value == LocalPlayer) then
+                return plot
+            end
+        end
+        if plot.Name:find(LocalPlayer.Name) or plot.Name:find(tostring(LocalPlayer.UserId)) then
+            return plot
+        end
+    end
+
+    -- 2. Dự phòng: Tìm Plot gần nhân vật nhất
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local rootPos = character.HumanoidRootPart.Position
+        local closestPlot = nil
+        local shortestDistance = math.huge
+
+        for _, plot in ipairs(gardens:GetChildren()) do
+            local plotPart = plot:FindFirstChildWhichIsA("BasePart", true)
+            if plotPart then
+                local dist = (plotPart.Position - rootPos).Magnitude
+                if dist < shortestDistance then
+                    shortestDistance = dist
+                    closestPlot = plot
+                end
+            end
+        end
+        if closestPlot and shortestDistance < 100 then
+            return closestPlot
+        end
+    end
+
+    -- 3. Mặc định lấy plot1 nếu có trong Gardens
+    return gardens:FindFirstChild("plot1") or gardens:FindFirstChild("Plot1") or gardens:GetChildren()[1]
+end
+
+-- Chạy dò 1 lần duy nhất khi bật Script
+_G.MyPlot = findMyPlot()
+if _G.MyPlot then
+    SavedPlotName = "workspace.Gardens." .. _G.MyPlot.Name
+end
+
 ---------------------------------------------------------
 -- MỤC: MAIN
 ---------------------------------------------------------
@@ -33,71 +96,10 @@ MainSection:Paragraph({
 
 local StatusParagraph = MainSection:Paragraph({
     Title = "📊 Status Hệ Thống",
-    Desc = "Đang kiểm tra Plot trong game..."
+    Desc = "Đang tải thông số..."
 })
 
-local StatsService = game:GetService("Stats")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- =========================================================
--- LOGIC KIỂM TRA CHÍNH XÁC PLOT CỦA BẠN (1 LẦN DUY NHẤT)
--- =========================================================
-local SavedPlotName = "workspace.Gardens.plot1" -- Mặc định chuẩn nếu không quét thấy
-local SavedPlotObject = nil
-
-local function TrackExactPlot()
-    local gardens = workspace:FindFirstChild("Gardens")
-    if gardens then
-        -- Lặp kiểm tra từng Plot cụ thể (plot1, plot2, plot3,...)
-        for _, plot in pairs(gardens:GetChildren()) do
-            local isMyPlot = false
-            
-            -- 1. Check Owner Object / String / Attribute
-            local ownerObj = plot:FindFirstChild("Owner") or plot:FindFirstChild("Player") or plot:FindFirstChild("ClaimedBy")
-            if ownerObj then
-                if ownerObj:IsA("ObjectValue") and ownerObj.Value == LocalPlayer then
-                    isMyPlot = true
-                elseif ownerObj:IsA("StringValue") or ownerObj:IsA("IntValue") then
-                    local val = tostring(ownerObj.Value)
-                    if val == LocalPlayer.Name or val == tostring(LocalPlayer.UserId) then
-                        isMyPlot = true
-                    end
-                end
-            end
-            
-            -- 2. Check Attribute nếu không có Object
-            if not isMyPlot then
-                for attrName, attrVal in pairs(plot:GetAttributes()) do
-                    if tostring(attrVal) == LocalPlayer.Name or tostring(attrVal) == tostring(LocalPlayer.UserId) then
-                        isMyPlot = true
-                        break
-                    end
-                end
-            end
-
-            -- Nếu xác định đúng là Plot của bản thân
-            if isMyPlot then
-                SavedPlotObject = plot
-                SavedPlotName = "workspace.Gardens." .. plot.Name
-                return
-            end
-        end
-
-        -- Dự phòng: Nếu game chưa set Owner nhưng có plot1 trong workspace.Gardens
-        local plot1 = gardens:FindFirstChild("plot1") or gardens:FindFirstChild("Plot1")
-        if plot1 then
-            SavedPlotObject = plot1
-            SavedPlotName = "workspace.Gardens." .. plot1.Name
-        end
-    end
-end
-
--- Chạy dò và lưu thông tin Plot 1 lần duy nhất ngay khi bật UI
-TrackExactPlot()
-
--- Vòng lặp hiển thị realtime FPS, Ping, MS và Plot
+-- Vòng lặp Realtime FPS / Ping / Status Plot
 task.spawn(function()
     while task.wait(0.5) do
         local fps = math.floor(1 / math.max(RunService.RenderStepped:Wait(), 0.001))
@@ -116,43 +118,174 @@ end)
 ---------------------------------------------------------
 local AutoSection1 = AutoTab:Section({ Title = "Thu Hoạch & Hạt Giống" })
 
-_G.FruitHarvestAmount = 1
+-- Biến Trạng Thái
+_G.FruitBatchLimit = 1
+_G.AutoHarvest = false
+_G.AutoCollectSeed = false
+
+-- Input Fruit Batch Limit
 AutoSection1:Input({
-    Title = "FruitHarvest",
-    Desc = "(Khuyên dùng 15) Mặc định: 1",
+    Title = "FruitHarvest Amount",
+    Desc = "Số lượng quả thu hoạch / đợt (Mặc định: 1)",
     Value = "1",
     Placeholder = "Nhập số lượng...",
     Callback = function(Text)
         local num = tonumber(Text)
-        _G.FruitHarvestAmount = num or 1
+        _G.FruitBatchLimit = (num and num > 0) and math.floor(num) or 1
     end
 })
 
-_G.AutoHarvest = false
+-- =========================================================
+-- LOGIC AUTO HARVEST (LẤY TỪ BẢN CŨ SANG)
+-- =========================================================
+local function triggerHarvestPrompt(prompt)
+    if not prompt then return end
+    pcall(function()
+        prompt.HoldDuration = 0
+        prompt.MaxActivationDistance = 9999
+        prompt.RequiresLineOfSight = false
+        
+        if fireHarvestPrompt then
+            fireHarvestPrompt(prompt)
+        elseif fireproximityprompt then
+            fireproximityprompt(prompt)
+        end
+    end)
+end
+
+local function processHarvest()
+    pcall(function()
+        if not _G.MyPlot then _G.MyPlot = findMyPlot() end
+        local targetPlot = _G.MyPlot or (workspace:FindFirstChild("Gardens") and workspace.Gardens:FindFirstChildOfClass("Model"))
+        if not targetPlot then return end
+
+        local plants = targetPlot:FindFirstChild("Plants")
+        if not plants then return end
+
+        local count = 0
+        for _, plant in ipairs(plants:GetChildren()) do
+            if not _G.AutoHarvest then break end
+            
+            local fruits = plant:FindFirstChild("Fruits")
+            if fruits then
+                for _, fruit in ipairs(fruits:GetChildren()) do
+                    if not _G.AutoHarvest then break end
+
+                    local harvestPart = fruit:FindFirstChild("HarvestPart")
+                    local harvestPrompt = harvestPart and harvestPart:FindFirstChild("HarvestPrompt")
+
+                    if harvestPrompt then
+                        triggerHarvestPrompt(harvestPrompt)
+                        count = count + 1
+                        if count >= _G.FruitBatchLimit then break end
+                    end
+                end
+            end
+            if count >= _G.FruitBatchLimit then break end
+        end
+    end)
+end
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoHarvest then processHarvest() end
+    end
+end)
+
+-- Toggle Auto Harvest
 AutoSection1:Toggle({
     Title = "Auto Harvest",
     Value = false,
     Callback = function(Value)
         _G.AutoHarvest = Value
-        task.spawn(function()
-            while _G.AutoHarvest do
-                task.wait(0.5)
-            end
-        end)
     end
 })
 
-_G.AutoCollectSeed = false
+-- =========================================================
+-- LOGIC AUTO COLLECT SEED (LẤY TỪ BẢN CŨ SANG)
+-- =========================================================
+local function triggerPickupPrompt(prompt)
+    if not prompt then return end
+    pcall(function()
+        prompt.HoldDuration = 0
+        prompt.MaxActivationDistance = 9999
+        prompt.RequiresLineOfSight = false
+        
+        if firePickupPrompt then
+            firePickupPrompt(prompt)
+        elseif fireproximityprompt then
+            fireproximityprompt(prompt)
+        end
+    end)
+end
+
+local function tweenToAndPick(targetPos, prompt)
+    local character = LocalPlayer.Character
+    if not character then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    local distance = (rootPart.Position - targetPos).Magnitude
+    local tweenTime = distance / 50
+    if tweenTime < 0.1 then tweenTime = 0.1 end
+
+    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 0))})
+
+    tween:Play()
+    
+    local completed = false
+    local conn = tween.Completed:Connect(function() completed = true end)
+
+    while not completed do
+        if not _G.AutoCollectSeed then
+            tween:Cancel()
+            break
+        end
+        task.wait(0.05)
+    end
+    if conn then conn:Disconnect() end
+
+    if prompt and _G.AutoCollectSeed then
+        triggerPickupPrompt(prompt)
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.3) do
+        if _G.AutoCollectSeed then
+            pcall(function()
+                local character = LocalPlayer.Character
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                local droppedFolder = workspace:FindFirstChild("DroppedItems")
+
+                if rootPart and droppedFolder then
+                    for _, item in ipairs(droppedFolder:GetChildren()) do
+                        if not _G.AutoCollectSeed then break end
+
+                        local promptAnchor = item:FindFirstChild("PromptAnchor")
+                        local pickupPrompt = promptAnchor and promptAnchor:FindFirstChild("PickupPrompt")
+
+                        if promptAnchor and pickupPrompt then
+                            local distance = (rootPart.Position - promptAnchor.Position).Magnitude
+                            if distance <= 100 then
+                                tweenToAndPick(promptAnchor.Position, pickupPrompt)
+                                task.wait(0.1)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Toggle Auto Collect Seed
 AutoSection1:Toggle({
     Title = "Auto Collect Seed",
     Value = false,
     Callback = function(Value)
         _G.AutoCollectSeed = Value
-        task.spawn(function()
-            while _G.AutoCollectSeed do
-                task.wait(1)
-            end
-        end)
     end
 })
 
@@ -199,18 +332,15 @@ AutoSection2:Toggle({
 local MiscSection1 = MiscTab:Section({ Title = "Tối Ưu Vườn (Garden Visibility)" })
 
 -- Hide Others Garden
-_G.HideOthersGarden = false
 MiscSection1:Toggle({
     Title = "Hide Others Garden",
     Desc = "Tàng hình toàn bộ garden xung quanh, không tàng hình vườn bản thân",
     Value = false,
     Callback = function(Value)
-        _G.HideOthersGarden = Value
-        
         local gardens = workspace:FindFirstChild("Gardens")
         if gardens then
             for _, obj in pairs(gardens:GetChildren()) do
-                local isMyPlot = (SavedPlotObject and obj == SavedPlotObject) or ("workspace.Gardens." .. obj.Name == SavedPlotName)
+                local isMyPlot = (_G.MyPlot and obj == _G.MyPlot)
                 if not isMyPlot then
                     for _, child in pairs(obj:GetDescendants()) do
                         if child:IsA("BasePart") then
@@ -225,25 +355,16 @@ MiscSection1:Toggle({
 })
 
 -- Hide You Garden
-_G.HideYouGarden = false
 MiscSection1:Toggle({
     Title = "Hide You Garden",
     Desc = "Tàng hình vườn của bản thân",
     Value = false,
     Callback = function(Value)
-        _G.HideYouGarden = Value
-        
-        local gardens = workspace:FindFirstChild("Gardens")
-        if gardens then
-            for _, obj in pairs(gardens:GetChildren()) do
-                local isMyPlot = (SavedPlotObject and obj == SavedPlotObject) or ("workspace.Gardens." .. obj.Name == SavedPlotName)
-                if isMyPlot then
-                    for _, child in pairs(obj:GetDescendants()) do
-                        if child:IsA("BasePart") then
-                            child.Transparency = Value and 1 or 0
-                            child.CanCollide = not Value
-                        end
-                    end
+        if _G.MyPlot then
+            for _, child in pairs(_G.MyPlot:GetDescendants()) do
+                if child:IsA("BasePart") then
+                    child.Transparency = Value and 1 or 0
+                    child.CanCollide = not Value
                 end
             end
         end
@@ -253,7 +374,7 @@ MiscSection1:Toggle({
 local MiscSection2 = MiscTab:Section({ Title = "Tối Ưu Đồ Họa" })
 
 MiscSection2:Button({
-    Title = "FPS BOOTER",
+    Title = "FPS BOOSTER",
     Desc = "Xóa Texture, Effect, Shadows để tối ưu FPS",
     Callback = function()
         local Terrain = workspace:FindFirstChildOfClass('Terrain')
