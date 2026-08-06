@@ -6,7 +6,11 @@ local LocalPlayer = Players.LocalPlayer
 _G.FruitBatchLimit = 1
 _G.AutoHarvest = false
 _G.AutoCollectSeed = false
+_G.HideOtherPlots = false
 _G.MyPlot = nil
+
+-- Lưu trữ dữ liệu vườn khác để Ẩn / Hiện
+local hiddenPlotsCache = {}
 
 -- ==========================================
 -- 1. HÀM TRACKER TÌM PLOT TỰ ĐỘNG
@@ -50,7 +54,38 @@ local function findMyPlot()
 end
 
 -- ==========================================
--- 2. HÀM THU HOẠCH (AUTO HARVEST)
+-- 2. HÀM ẨN / HIỆN VƯỜN KHÁC (HIDE OTHER GARDENS)
+-- ==========================================
+local function toggleOtherPlots(state)
+    local gardens = workspace:FindFirstChild("Gardens")
+    if not gardens then return end
+
+    if not _G.MyPlot then
+        _G.MyPlot = findMyPlot()
+    end
+
+    for _, plot in ipairs(gardens:GetChildren()) do
+        -- Nếu plot này KHÔNG PHẢI vườn của mình
+        if _G.MyPlot and plot ~= _G.MyPlot then
+            if state then
+                -- BẬT ẨN: Di chuyển vườn người khác sang nil (tối ưu FPS tối đa)
+                if not hiddenPlotsCache[plot] then
+                    hiddenPlotsCache[plot] = plot.Parent
+                    plot.Parent = nil
+                end
+            else
+                -- TẮT ẨN: Khôi phục lại vườn người khác
+                if hiddenPlotsCache[plot] then
+                    plot.Parent = hiddenPlotsCache[plot]
+                    hiddenPlotsCache[plot] = nil
+                end
+            end
+        end
+    end
+end
+
+-- ==========================================
+-- 3. HÀM THU HOẠCH (AUTO HARVEST)
 -- ==========================================
 local function processHarvest()
     pcall(function()
@@ -78,7 +113,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 3. HÀM BAY ĐẾN NHẶT HẠT GIỐNG (TWEEN / FLY)
+-- 4. HÀM BAY ĐẾN NHẶT HẠT GIỐNG (TWEEN / FLY)
 -- ==========================================
 local function tweenToAndPick(targetPos, prompt)
     local character = LocalPlayer.Character
@@ -87,7 +122,6 @@ local function tweenToAndPick(targetPos, prompt)
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
 
-    -- Tính khoảng cách để chỉnh tốc độ bay mượt mà (Tốc độ ~ 50 stud/s)
     local distance = (rootPart.Position - targetPos).Magnitude
     local tweenTime = distance / 50
     if tweenTime < 0.1 then tweenTime = 0.1 end
@@ -97,7 +131,6 @@ local function tweenToAndPick(targetPos, prompt)
 
     tween:Play()
     
-    -- Chờ bay xong hoặc nếu người dùng tắt Auto thì dừng Tween
     local completed = false
     tween.Completed:Connect(function() completed = true end)
 
@@ -109,7 +142,6 @@ local function tweenToAndPick(targetPos, prompt)
         task.wait(0.05)
     end
 
-    -- Tự động nhặt khi bay tới nơi
     if prompt and _G.AutoCollectSeed then
         fireproximityprompt(prompt)
     end
@@ -142,38 +174,39 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 4. GIAO DIỆN PANEL GEMINI GAG2 (CÓ NÚT THU GỌN - / ^)
+-- 5. GIAO DIỆN PANEL GEMINI GAG2 (UI TỔNG HỢP)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
 local MinimizeBtn = Instance.new("TextButton")
-local ContentFrame = Instance.new("Frame") -- Khung chứa nội dung bên trong
+local ContentFrame = Instance.new("Frame")
 
 local PlotStatus = Instance.new("TextLabel")
 local FruitInput = Instance.new("TextBox")
 local HarvestBtn = Instance.new("TextButton")
 local CollectBtn = Instance.new("TextButton")
+local HidePlotsBtn = Instance.new("TextButton")
 
-ScreenGui.Name = "GeminiGAG2Panel_Tween"
+ScreenGui.Name = "GeminiGAG2Panel_Full"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
--- Frame Chính (Bao ngoài)
+-- Main Frame (Chiều cao tăng lên 290 để chứa đủ các nút)
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
-MainFrame.Size = UDim2.new(0, 230, 0, 250)
+MainFrame.Size = UDim2.new(0, 230, 0, 290)
 MainFrame.Active = true
 MainFrame.Draggable = true
-MainFrame.ClipsDescendants = true -- Giúp ẩn nội dung khi thu gọn
+MainFrame.ClipsDescendants = true
 
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
--- Thanh Tiêu Đề
+-- Title
 Title.Name = "Title"
 Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
@@ -188,7 +221,7 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = Title
 
--- Nút Thu Gọn (-) / Mở Rộng (^)
+-- Minimize Button (-) / (^)
 MinimizeBtn.Name = "MinimizeBtn"
 MinimizeBtn.Parent = Title
 MinimizeBtn.BackgroundTransparency = 1
@@ -199,18 +232,18 @@ MinimizeBtn.Text = "-"
 MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinimizeBtn.TextSize = 22
 
--- Khung chứa nội dung (sẽ ẩn/hiện khi bấm nút)
+-- Content Frame
 ContentFrame.Name = "ContentFrame"
 ContentFrame.Parent = MainFrame
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Position = UDim2.new(0, 0, 0, 35)
 ContentFrame.Size = UDim2.new(1, 0, 1, -35)
 
--- Trạng thái Plot
+-- Status
 PlotStatus.Name = "PlotStatus"
 PlotStatus.Parent = ContentFrame
 PlotStatus.BackgroundTransparency = 1
-PlotStatus.Position = UDim2.new(0.05, 0, 0.05, 0)
+PlotStatus.Position = UDim2.new(0.05, 0, 0.03, 0)
 PlotStatus.Size = UDim2.new(0.9, 0, 0, 20)
 PlotStatus.Font = Enum.Font.SourceSansItalic
 PlotStatus.Text = "Plot: Standby..."
@@ -228,12 +261,12 @@ local function updatePlotUI()
     end
 end
 
--- Input Số Lượng Trái
+-- Fruit Input
 FruitInput.Name = "FruitInput"
 FruitInput.Parent = ContentFrame
 FruitInput.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-FruitInput.Position = UDim2.new(0.08, 0, 0.18, 0)
-FruitInput.Size = UDim2.new(0.84, 0, 0, 35)
+FruitInput.Position = UDim2.new(0.08, 0, 0.14, 0)
+FruitInput.Size = UDim2.new(0.84, 0, 0, 32)
 FruitInput.Font = Enum.Font.SourceSans
 FruitInput.PlaceholderText = "Số trái / khung (1, 2...)"
 FruitInput.Text = "1"
@@ -253,16 +286,16 @@ FruitInput.FocusLost:Connect(function()
     end
 end)
 
--- Nút Auto Harvest
+-- Button 1: Auto Harvest
 HarvestBtn.Name = "HarvestBtn"
 HarvestBtn.Parent = ContentFrame
 HarvestBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-HarvestBtn.Position = UDim2.new(0.08, 0, 0.40, 0)
-HarvestBtn.Size = UDim2.new(0.84, 0, 0, 35)
+HarvestBtn.Position = UDim2.new(0.08, 0, 0.31, 0)
+HarvestBtn.Size = UDim2.new(0.84, 0, 0, 32)
 HarvestBtn.Font = Enum.Font.SourceSansBold
 HarvestBtn.Text = "Auto Harvest: OFF"
 HarvestBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-HarvestBtn.TextSize = 15
+HarvestBtn.TextSize = 14
 
 local HarvestCorner = Instance.new("UICorner")
 HarvestCorner.CornerRadius = UDim.new(0, 6)
@@ -280,16 +313,16 @@ HarvestBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Nút Auto Collect Seed
+-- Button 2: Auto Collect Seed
 CollectBtn.Name = "CollectBtn"
 CollectBtn.Parent = ContentFrame
 CollectBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-CollectBtn.Position = UDim2.new(0.08, 0, 0.62, 0)
-CollectBtn.Size = UDim2.new(0.84, 0, 0, 35)
+CollectBtn.Position = UDim2.new(0.08, 0, 0.48, 0)
+CollectBtn.Size = UDim2.new(0.84, 0, 0, 32)
 CollectBtn.Font = Enum.Font.SourceSansBold
 CollectBtn.Text = "Auto Collect Seed: OFF"
 CollectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CollectBtn.TextSize = 15
+CollectBtn.TextSize = 14
 
 local CollectCorner = Instance.new("UICorner")
 CollectCorner.CornerRadius = UDim.new(0, 6)
@@ -306,22 +339,48 @@ CollectBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ==========================================
--- XỬ LÝ NÚT THU GỌN / MỞ RỘNG PANEL
--- ==========================================
+-- Button 3: Hide Other Gardens (Chức năng mới)
+HidePlotsBtn.Name = "HidePlotsBtn"
+HidePlotsBtn.Parent = ContentFrame
+HidePlotsBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+HidePlotsBtn.Position = UDim2.new(0.08, 0, 0.65, 0)
+HidePlotsBtn.Size = UDim2.new(0.84, 0, 0, 32)
+HidePlotsBtn.Font = Enum.Font.SourceSansBold
+HidePlotsBtn.Text = "Hide Other Plots: OFF"
+HidePlotsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+HidePlotsBtn.TextSize = 14
+
+local HideCorner = Instance.new("UICorner")
+HideCorner.CornerRadius = UDim.new(0, 6)
+HideCorner.Parent = HidePlotsBtn
+
+HidePlotsBtn.MouseButton1Click:Connect(function()
+    _G.HideOtherPlots = not _G.HideOtherPlots
+    
+    if _G.HideOtherPlots then
+        updatePlotUI()
+        toggleOtherPlots(true)
+        HidePlotsBtn.Text = "Hide Other Plots: ON"
+        HidePlotsBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+    else
+        toggleOtherPlots(false)
+        HidePlotsBtn.Text = "Hide Other Plots: OFF"
+        HidePlotsBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+    end
+end)
+
+-- Toggle Menu (-) / (^) Logic
 local isMinimized = false
 
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     
     if isMinimized then
-        -- Thu gọn lại: Chỉ giữ thanh tiêu đề
         ContentFrame.Visible = false
         MainFrame:TweenSize(UDim2.new(0, 230, 0, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.2, true)
         MinimizeBtn.Text = "^"
     else
-        -- Mở rộng ra đầy đủ
-        MainFrame:TweenSize(UDim2.new(0, 230, 0, 250), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.2, true, function()
+        MainFrame:TweenSize(UDim2.new(0, 230, 0, 290), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.2, true, function()
             ContentFrame.Visible = true
         end)
         MinimizeBtn.Text = "-"
