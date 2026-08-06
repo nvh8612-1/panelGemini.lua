@@ -58,22 +58,23 @@ local function findMyPlot()
 end
 
 -- ==========================================
--- 2. HÀM ẨN VƯỜN (TRONG SUỐT & TẮT VA CHẠM)
+-- 2. HÀM TÀNG HÌNH VƯỜN, CÂY & TRÁI (PLANTS/FRUITS)
 -- ==========================================
 local function setPlotVisible(plot, state)
     if not plot then return end
     
+    -- Quét toàn bộ mọi vật thể thuộc Plot (Bao gồm Plants và Fruits)
     for _, obj in ipairs(plot:GetDescendants()) do
         pcall(function()
             if obj:IsA("BasePart") then
-                if state then -- Ẩn vườn
+                if state then -- Tàng hình
                     if originalTransparencyCache[obj] == nil then
                         originalTransparencyCache[obj] = obj.Transparency
                         originalCanCollideCache[obj] = obj.CanCollide
                     end
                     obj.Transparency = 1
                     obj.CanCollide = false
-                else -- Hiện lại vườn
+                else -- Hiện lại
                     if originalTransparencyCache[obj] ~= nil then
                         obj.Transparency = originalTransparencyCache[obj]
                         obj.CanCollide = originalCanCollideCache[obj]
@@ -88,6 +89,28 @@ local function setPlotVisible(plot, state)
                 else
                     if originalTransparencyCache[obj] ~= nil then
                         obj.Transparency = originalTransparencyCache[obj]
+                    end
+                end
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") or obj:IsA("Highlight") then
+                if state then
+                    if originalTransparencyCache[obj] == nil then
+                        originalTransparencyCache[obj] = obj.Enabled
+                    end
+                    obj.Enabled = false
+                else
+                    if originalTransparencyCache[obj] ~= nil then
+                        obj.Enabled = originalTransparencyCache[obj]
+                    end
+                end
+            elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                if state then
+                    if originalTransparencyCache[obj] == nil then
+                        originalTransparencyCache[obj] = obj.Enabled
+                    end
+                    obj.Enabled = false
+                else
+                    if originalTransparencyCache[obj] ~= nil then
+                        obj.Enabled = originalTransparencyCache[obj]
                     end
                 end
             end
@@ -109,6 +132,18 @@ local function toggleAllGarden(state)
         setPlotVisible(plot, state)
     end
 end
+
+-- Tự động áp dụng lại tàng hình nếu có trái mới mọc ra trong Plants/Fruits khi đang bật Hide
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if _G.HideAllGarden then
+            toggleAllGarden(true)
+        elseif _G.HideMePlot then
+            toggleMePlot(true)
+        end
+    end
+end)
 
 -- ==========================================
 -- 3. HÀM THU HOẠCH (AUTO HARVEST)
@@ -206,7 +241,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 5. HÀM FPS BOOSTER (SAFE EXECUTE)
+-- 5. HÀM FPS BOOSTER
 -- ==========================================
 local function enableFPSBooster()
     local Lighting = game:GetService("Lighting")
@@ -275,7 +310,6 @@ local function enableFPSBooster()
         optimize(v)
     end)
 
-    -- An toàn cho Executor yếu không dùng được settings()
     pcall(function()
         if settings and settings() and settings().Rendering then
             settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
@@ -314,7 +348,7 @@ ScreenGui.Name = "GeminiGAG2Panel_5Options"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
--- Nút tròn nổi 'G' để Ẩn / Hiện toàn bộ Menu
+-- Nút tròn nổi 'G'
 OpenCloseBtn.Name = "OpenCloseBtn"
 OpenCloseBtn.Parent = ScreenGui
 OpenCloseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
