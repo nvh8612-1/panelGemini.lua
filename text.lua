@@ -186,7 +186,7 @@ end
 task.spawn(function()
     while _G.ScriptVersion == currentVersion do
         if _G.AutoHarvest then processHarvest() end
-        task.wait(0.1)
+        task.wait(0.01)
     end
 end)
 
@@ -499,7 +499,7 @@ FruitInput.FocusLost:Connect(function()
     end
 end)
 
--- Button 1: Auto Harvest
+-- Button 1: Auto Harvest 
 HarvestBtn.Name = "HarvestBtn"
 HarvestBtn.Parent = ContentFrame
 HarvestBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
@@ -526,7 +526,7 @@ HarvestBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Button 2: Auto Collect Seed (30m)
+-- Button 2: Auto Collect Seed 
 CollectBtn.Name = "CollectBtn"
 CollectBtn.Parent = ContentFrame
 CollectBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
