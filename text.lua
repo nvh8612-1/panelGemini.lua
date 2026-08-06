@@ -131,8 +131,20 @@ local function toggleAllGarden(state)
 end
 
 -- ==========================================
--- 3. HÀM THU HOẠCH (AUTO HARVEST)
+-- 3. HÀM THU HOẠCH FIX LỖI PROXIMITYPROMPT
 -- ==========================================
+local function firePrompt(prompt)
+    if not prompt or not prompt:IsA("ProximityPrompt") then return end
+    pcall(function()
+        prompt.HoldDuration = 0
+        prompt.MaxActivationDistance = 9999
+        prompt.RequiresLineOfSight = false
+        if fireproximityprompt then
+            fireproximityprompt(prompt)
+        end
+    end)
+end
+
 local function processHarvest()
     pcall(function()
         if not _G.MyPlot then _G.MyPlot = findMyPlot() end
@@ -142,10 +154,18 @@ local function processHarvest()
         for _, crop in ipairs(targetFolder:GetDescendants()) do
             if not _G.AutoHarvest then break end
             
-            if crop:IsA("ProximityPrompt") and (crop.Name:lower():find("harvest") or crop.ObjectText:lower():find("harvest") or crop.ActionText:lower():find("harvest")) then
-                fireproximityprompt(crop)
-                count = count + 1
-                if count >= _G.FruitBatchLimit then break end
+            if crop:IsA("ProximityPrompt") then
+                local actionName = crop.ActionText:lower()
+                local objectName = crop.ObjectText:lower()
+                local promptName = crop.Name:lower()
+
+                if actionName:find("harvest") or actionName:find("pick") or actionName:find("collect") or
+                   objectName:find("harvest") or promptName:find("harvest") or promptName:find("prompt") then
+                    
+                    firePrompt(crop)
+                    count = count + 1
+                    if count >= _G.FruitBatchLimit then break end
+                end
             end
         end
     end)
@@ -154,7 +174,7 @@ end
 task.spawn(function()
     while _G.ScriptVersion == currentVersion do
         if _G.AutoHarvest then processHarvest() end
-        task.wait(0.1)
+        task.wait(0.15)
     end
 end)
 
@@ -189,7 +209,7 @@ local function tweenToAndPick(targetPos, prompt)
     end
 
     if prompt and _G.AutoCollectSeed and _G.ScriptVersion == currentVersion then
-        fireproximityprompt(prompt)
+        firePrompt(prompt)
     end
 end
 
