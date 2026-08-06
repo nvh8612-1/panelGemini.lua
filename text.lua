@@ -1,663 +1,265 @@
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+-- ====================================================================
+-- PANEL GEMINI - GAG2 (Scan workspace.Gardens Once)
+-- Script được làm bởi WhiteSs
+-- ====================================================================
+
+-- Link loadstring chính thức từ Releases của Footagesus
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- 1. TẠO WINDOW CHÍNH
+local Window = WindUI:CreateWindow({
+    Title = "Panel Gemini",
+    Author = "WhiteSs",
+    Icon = "sprout", -- Icon mầm cây
+    Folder = "GeminiGAG2",
+    Size = UDim2.fromOffset(580, 460),
+    Transparent = true,
+    Theme = "Dark"
+})
+
+-- 2. KHỞI TẠO TABS
+local MainTab = Window:Tab({ Title = "Main", Icon = "home" })
+local AutoTab = Window:Tab({ Title = "Auto", Icon = "repeat" })
+local MiscTab = Window:Tab({ Title = "Misc", Icon = "sliders" })
+
+---------------------------------------------------------
+-- MỤC: MAIN
+---------------------------------------------------------
+local MainSection = MainTab:Section({ Title = "Thông Tin Hub" })
+
+MainSection:Paragraph({
+    Title = "Gemini GAG2",
+    Desc = "Script được làm bởi WhiteSs"
+})
+
+-- Status Paragraph
+local StatusParagraph = MainSection:Paragraph({
+    Title = "📊 Status Hệ Thống",
+    Desc = "Đang quét danh sách Plot..."
+})
+
+-- Logic Quét Plot Trong workspace.Gardens (Chạy 1 lần duy nhất khi bật script)
+local StatsService = game:GetService("Stats")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- ==========================================
--- 0. HỆ THỐNG TỰ ĐỘNG DIỆT SCRIPT CŨ (KILL SWITCH)
--- ==========================================
-_G.ScriptVersion = (_G.ScriptVersion or 0) + 1
-local currentVersion = _G.ScriptVersion
+local function CheckMyPlotOnce()
+    local myPlotName = "Không tìm thấy"
+    
+    local gardens = workspace:FindFirstChild("Gardens")
+    if gardens then
+        -- Lặp qua tất cả các plot trong workspace.Gardens
+        for _, plot in pairs(gardens:GetChildren()) do
+            -- Kiểm tra xem plot có chứa Owner trùng với LocalPlayer không
+            local ownerObj = plot:FindFirstChild("Owner")
+            if ownerObj then
+                if ownerObj:IsA("ObjectValue") and ownerObj.Value == LocalPlayer then
+                    myPlotName = plot.Name
+                    break
+                elseif ownerObj:IsA("StringValue") and (ownerObj.Value == LocalPlayer.Name or ownerObj.Value == tostring(LocalPlayer.UserId)) then
+                    myPlotName = plot.Name
+                    break
+                end
+            end
+        end
+    end
+    
+    return myPlotName
+end
 
-pcall(function()
-    if LocalPlayer.PlayerGui:FindFirstChild("GeminiGAG2Panel_5Options") then
-        LocalPlayer.PlayerGui["GeminiGAG2Panel_5Options"]:Destroy()
+-- Gọi hàm check đúng 1 lần khi load UI
+local trackedPlot = CheckMyPlotOnce()
+
+-- Cập nhật FPS / Ping realtime, giữ nguyên Plot đã check 1 lần
+task.spawn(function()
+    while task.wait(0.5) do
+        local fps = math.floor(1 / math.max(RunService.RenderStepped:Wait(), 0.001))
+        local ping = math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
+        local ms = math.floor(RunService.RenderStepped:Wait() * 1000)
+
+        StatusParagraph:SetDesc(string.format(
+            "FPS: %d | Ping: %dms | MS: %dms\nPlot: %s\nScript được làm bởi WhiteSs | Gemini GAG2",
+            fps, ping, ms, trackedPlot
+        ))
     end
 end)
 
--- Biến trạng thái toàn cục
-_G.FruitBatchLimit = 1
+---------------------------------------------------------
+-- MỤC: AUTO
+---------------------------------------------------------
+local AutoSection1 = AutoTab:Section({ Title = "Thu Hoạch & Hạt Giống" })
+
+-- FruitHarvest Input
+_G.FruitHarvestAmount = 1
+AutoSection1:Input({
+    Title = "FruitHarvest",
+    Desc = "(Khuyên dùng 15) Mặc định: 1",
+    Value = "1",
+    Placeholder = "Nhập số lượng...",
+    Callback = function(Text)
+        local num = tonumber(Text)
+        _G.FruitHarvestAmount = num or 1
+    end
+})
+
+-- Auto Harvest Toggle
 _G.AutoHarvest = false
-_G.AutoCollectSeed = false
-_G.HideMePlot = false
-_G.HideAllGarden = false
-_G.FPSBooster = false
-_G.MyPlot = nil
-
-local originalTransparencyCache = {}
-local originalCanCollideCache = {}
-
--- ==========================================
--- 1. HÀM FIND MY PLOT
--- ==========================================
-local function findMyPlot()
-    local gardens = workspace:FindFirstChild("Gardens")
-    if not gardens then return nil end
-
-    for _, plot in ipairs(gardens:GetChildren()) do
-        local ownerValue = plot:FindFirstChild("Owner") or plot:FindFirstChild("OwnerName") or plot:FindFirstChild("Player")
-        if ownerValue then
-            if (ownerValue:IsA("StringValue") and ownerValue.Value == LocalPlayer.Name) or
-               (ownerValue:IsA("ObjectValue") and ownerValue.Value == LocalPlayer) then
-                return plot
-            end
-        end
-        if plot.Name:find(LocalPlayer.Name) or plot.Name:find(tostring(LocalPlayer.UserId)) then
-            return plot
-        end
-    end
-
-    local character = LocalPlayer.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        local rootPos = character.HumanoidRootPart.Position
-        local closestPlot = nil
-        local shortestDistance = math.huge
-
-        for _, plot in ipairs(gardens:GetChildren()) do
-            local plotPart = plot:FindFirstChildWhichIsA("BasePart", true)
-            if plotPart then
-                local dist = (plotPart.Position - rootPos).Magnitude
-                if dist < shortestDistance then
-                    shortestDistance = dist
-                    closestPlot = plot
-                end
-            end
-        end
-        return closestPlot
-    end
-    return nil
-end
-
--- ==========================================
--- 2. HÀM TÀNG HÌNH VƯỜN (MƯỢT 100%)
--- ==========================================
-local function setPlotVisible(plot, state)
-    if not plot then return end
-    
-    for _, obj in ipairs(plot:GetDescendants()) do
-        pcall(function()
-            if obj:IsA("BasePart") then
-                if state then
-                    if originalTransparencyCache[obj] == nil then
-                        originalTransparencyCache[obj] = obj.Transparency
-                        originalCanCollideCache[obj] = obj.CanCollide
-                    end
-                    obj.Transparency = 1
-                    obj.CanCollide = false
-                else
-                    if originalTransparencyCache[obj] ~= nil then
-                        obj.Transparency = originalTransparencyCache[obj]
-                        obj.CanCollide = originalCanCollideCache[obj]
-                    end
-                end
-            elseif obj:IsA("Decal") or obj:IsA("Texture") then
-                if state then
-                    if originalTransparencyCache[obj] == nil then originalTransparencyCache[obj] = obj.Transparency end
-                    obj.Transparency = 1
-                else
-                    if originalTransparencyCache[obj] ~= nil then obj.Transparency = originalTransparencyCache[obj] end
-                end
-            elseif obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") or obj:IsA("Highlight") then
-                if state then
-                    if originalTransparencyCache[obj] == nil then originalTransparencyCache[obj] = obj.Enabled end
-                    obj.Enabled = false
-                else
-                    if originalTransparencyCache[obj] ~= nil then obj.Enabled = originalTransparencyCache[obj] end
-                end
-            elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
-                if state then
-                    if originalTransparencyCache[obj] == nil then originalTransparencyCache[obj] = obj.Enabled end
-                    obj.Enabled = false
-                else
-                    if originalTransparencyCache[obj] ~= nil then obj.Enabled = originalTransparencyCache[obj] end
-                end
+AutoSection1:Toggle({
+    Title = "Auto Harvest",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoHarvest = Value
+        task.spawn(function()
+            while _G.AutoHarvest do
+                task.wait(0.5)
             end
         end)
     end
-end
+})
 
-local function toggleMePlot(state)
-    if not _G.MyPlot then _G.MyPlot = findMyPlot() end
-    if not _G.MyPlot then return end
-    setPlotVisible(_G.MyPlot, state)
-end
-
-local function toggleAllGarden(state)
-    local gardens = workspace:FindFirstChild("Gardens")
-    if not gardens then return end
-    for _, plot in ipairs(gardens:GetChildren()) do
-        setPlotVisible(plot, state)
-    end
-end
-
--- ==========================================
--- 3. HÀM THU HOẠCH CHUẨN ĐƯỜNG DẪN (HarvestPrompt)
--- ==========================================
-local function triggerHarvestPrompt(prompt)
-    if not prompt then return end
-    pcall(function()
-        prompt.HoldDuration = 0
-        prompt.MaxActivationDistance = 9999
-        prompt.RequiresLineOfSight = false
-        
-        if fireHarvestPrompt then
-            fireHarvestPrompt(prompt)
-        elseif fireproximityprompt then
-            fireproximityprompt(prompt)
-        end
-    end)
-end
-
-local function processHarvest()
-    pcall(function()
-        if not _G.MyPlot then _G.MyPlot = findMyPlot() end
-        local targetPlot = _G.MyPlot or workspace:FindFirstChild("Gardens"):FindFirstChildOfClass("Model")
-        if not targetPlot then return end
-
-        local plants = targetPlot:FindFirstChild("Plants")
-        if not plants then return end
-
-        local count = 0
-
-        for _, plant in ipairs(plants:GetChildren()) do
-            if not _G.AutoHarvest then break end
-            
-            local fruits = plant:FindFirstChild("Fruits")
-            if fruits then
-                for _, fruit in ipairs(fruits:GetChildren()) do
-                    if not _G.AutoHarvest then break end
-
-                    local harvestPart = fruit:FindFirstChild("HarvestPart")
-                    local harvestPrompt = harvestPart and harvestPart:FindFirstChild("HarvestPrompt")
-
-                    if harvestPrompt then
-                        triggerHarvestPrompt(harvestPrompt)
-                        count = count + 1
-                        if count >= _G.FruitBatchLimit then break end
-                    end
-                end
+-- Auto Collect Seed Toggle
+_G.AutoCollectSeed = false
+AutoSection1:Toggle({
+    Title = "Auto Collect Seed",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoCollectSeed = Value
+        task.spawn(function()
+            while _G.AutoCollectSeed do
+                task.wait(1)
             end
-            if count >= _G.FruitBatchLimit then break end
-        end
-    end)
-end
-
-task.spawn(function()
-    while _G.ScriptVersion == currentVersion do
-        if _G.AutoHarvest then processHarvest() end
-        task.wait(0.01)
+        end)
     end
-end)
+})
 
--- ==========================================
--- 4. HÀM NHẶT HẠT GIỐNG CHUẨN ĐƯỜNG DẪN (PickupPrompt)
--- ==========================================
-local function triggerPickupPrompt(prompt)
-    if not prompt then return end
-    pcall(function()
-        prompt.HoldDuration = 0
-        prompt.MaxActivationDistance = 9999
-        prompt.RequiresLineOfSight = false
-        
-        if firePickupPrompt then
-            firePickupPrompt(prompt)
-        elseif fireproximityprompt then
-            fireproximityprompt(prompt)
-        end
-    end)
-end
+local AutoSection2 = AutoTab:Section({ Title = "Tự Động Bán Đồ" })
 
-local function tweenToAndPick(targetPos, prompt)
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
-
-    local distance = (rootPart.Position - targetPos).Magnitude
-    local tweenTime = distance / 50
-    if tweenTime < 0.1 then tweenTime = 0.1 end
-
-    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 0))})
-
-    tween:Play()
-    
-    local completed = false
-    tween.Completed:Connect(function() completed = true end)
-
-    while not completed and _G.ScriptVersion == currentVersion do
-        if not _G.AutoCollectSeed then
-            tween:Cancel()
-            break
-        end
-        task.wait(0.05)
+-- DelaySell Input
+_G.DelaySell = 0.1
+AutoSection2:Input({
+    Title = "DelaySell",
+    Desc = "Thời gian delay bán (Mặc định: 0.1)",
+    Value = "0.1",
+    Placeholder = "0.1 hoặc 0,1",
+    Callback = function(Text)
+        local sanitizedText = string.gsub(Text, ",", ".")
+        local num = tonumber(sanitizedText)
+        _G.DelaySell = (num and num >= 0) and num or 0.1
     end
+})
 
-    if prompt and _G.AutoCollectSeed and _G.ScriptVersion == currentVersion then
-        triggerPickupPrompt(prompt)
-    end
-end
-
-task.spawn(function()
-    while _G.ScriptVersion == currentVersion do
-        if _G.AutoCollectSeed then
+-- Auto Sell Inventory Toggle
+_G.AutoSell = false
+AutoSection2:Toggle({
+    Title = "Auto Sell Inventory",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoSell = Value
+        task.spawn(function()
+            local Networking
             pcall(function()
-                local character = LocalPlayer.Character
-                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-                local droppedFolder = workspace:FindFirstChild("DroppedItems")
+                Networking = require(game:GetService("ReplicatedStorage"):WaitForChild("SharedModules"):WaitForChild("Networking"))
+            end)
 
-                if rootPart and droppedFolder then
-                    for _, item in ipairs(droppedFolder:GetChildren()) do
-                        if not _G.AutoCollectSeed or _G.ScriptVersion ~= currentVersion then break end
+            while _G.AutoSell do
+                if Networking and Networking.NPCS and Networking.NPCS.SellAll then
+                    Networking.NPCS.SellAll:Fire()
+                end
+                task.wait(_G.DelaySell or 0.1)
+            end
+        end)
+    end
+})
 
-                        local promptAnchor = item:FindFirstChild("PromptAnchor")
-                        local pickupPrompt = promptAnchor and promptAnchor:FindFirstChild("PickupPrompt")
+---------------------------------------------------------
+-- MỤC: MISC
+---------------------------------------------------------
+local MiscSection1 = MiscTab:Section({ Title = "Tối Ưu Vườn (Garden Visibility)" })
 
-                        if promptAnchor and pickupPrompt then
-                            local distance = (rootPart.Position - promptAnchor.Position).Magnitude
-                            if distance <= 100 then
-                                tweenToAndPick(promptAnchor.Position, pickupPrompt)
-                                task.wait(0.1)
-                            end
+-- Hide Others Garden
+_G.HideOthersGarden = false
+MiscSection1:Toggle({
+    Title = "Hide Others Garden",
+    Desc = "Tàng hình toàn bộ garden xung quanh, không tàng hình vườn bản thân",
+    Value = false,
+    Callback = function(Value)
+        _G.HideOthersGarden = Value
+        
+        local gardens = workspace:FindFirstChild("Gardens")
+        if gardens then
+            for _, obj in pairs(gardens:GetChildren()) do
+                local isMyPlot = (obj.Name == trackedPlot)
+                
+                if not isMyPlot then
+                    for _, child in pairs(obj:GetDescendants()) do
+                        if child:IsA("BasePart") then
+                            child.Transparency = Value and 1 or 0
+                            child.CanCollide = not Value
                         end
                     end
                 end
-            end)
-        end
-        task.wait(0.3)
-    end
-end)
-
--- ==========================================
--- 5. HÀM FPS BOOSTER
--- ==========================================
-local function enableFPSBooster()
-    local Lighting = game:GetService("Lighting")
-    local Terrain = workspace.Terrain
-
-    pcall(function()
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 9e9
-        Lighting.Brightness = 1
-        Lighting.EnvironmentDiffuseScale = 0
-        Lighting.EnvironmentSpecularScale = 0
-        if Lighting:FindFirstChild("Bloom") then Lighting.Bloom.Enabled = false end
-        if Lighting:FindFirstChild("ColorCorrection") then Lighting.ColorCorrection.Enabled = false end
-        if Lighting:FindFirstChild("SunRays") then Lighting.SunRays.Enabled = false end
-        if Lighting:FindFirstChild("DepthOfField") then Lighting.DepthOfField.Enabled = false end
-        if Lighting:FindFirstChild("Blur") then Lighting.Blur.Enabled = false end
-    end)
-
-    pcall(function()
-        Terrain.WaterWaveSize = 0
-        Terrain.WaterWaveSpeed = 0
-        Terrain.WaterReflectance = 0
-        Terrain.WaterTransparency = 1
-    end)
-
-    local function optimize(obj)
-        pcall(function()
-            if obj:IsA("ParticleEmitter")
-            or obj:IsA("Trail")
-            or obj:IsA("Beam")
-            or obj:IsA("Smoke")
-            or obj:IsA("Fire")
-            or obj:IsA("Sparkles") then
-                obj.Enabled = false
-
-            elseif obj:IsA("Explosion") then
-                obj.BlastPressure = 0
-                obj.BlastRadius = 0
-
-            elseif obj:IsA("BasePart") then
-                obj.CastShadow = false
-                obj.Material = Enum.Material.SmoothPlastic
-                obj.Reflectance = 0
-
-            elseif obj:IsA("Texture") or obj:IsA("Decal") then
-                obj.Texture = ""
-
-            elseif obj:IsA("MeshPart") then
-                obj.TextureID = ""
-
-            elseif obj:IsA("SpecialMesh") then
-                obj.TextureId = ""
-
-            elseif obj:IsA("SurfaceAppearance") then
-                obj:Destroy()
             end
-        end)
-    end
-
-    for _, v in ipairs(game:GetDescendants()) do
-        optimize(v)
-    end
-
-    game.DescendantAdded:Connect(function(v)
-        if _G.ScriptVersion == currentVersion then
-            task.wait()
-            optimize(v)
         end
-    end)
+    end
+})
 
-    pcall(function()
-        if settings and settings() and settings().Rendering then
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+-- Hide You Garden
+_G.HideYouGarden = false
+MiscSection1:Toggle({
+    Title = "Hide You Garden",
+    Desc = "Tàng hình vườn của bản thân",
+    Value = false,
+    Callback = function(Value)
+        _G.HideYouGarden = Value
+        
+        local gardens = workspace:FindFirstChild("Gardens")
+        if gardens then
+            for _, obj in pairs(gardens:GetChildren()) do
+                local isMyPlot = (obj.Name == trackedPlot)
+                
+                if isMyPlot then
+                    for _, child in pairs(obj:GetDescendants()) do
+                        if child:IsA("BasePart") then
+                            child.Transparency = Value and 1 or 0
+                            child.CanCollide = not Value
+                        end
+                    end
+                end
+            end
         end
-    end)
-end
-
--- ==========================================
--- 6. GIAO DIỆN PANEL GEMINI (UI BẢN MỚI)
--- ==========================================
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local MinimizeBtn = Instance.new("TextButton")
-local ContentFrame = Instance.new("Frame")
-
-local OpenCloseBtn = Instance.new("TextButton")
-local OpenCorner = Instance.new("UICorner")
-
-local PlotStatus = Instance.new("TextLabel")
-local FruitInput = Instance.new("TextBox")
-local HarvestBtn = Instance.new("TextButton")
-local CollectBtn = Instance.new("TextButton")
-local HideAllBtn = Instance.new("TextButton")
-local HideMeBtn = Instance.new("TextButton")
-local FPSBtn = Instance.new("TextButton")
-
-ScreenGui.Name = "GeminiGAG2Panel_5Options"
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-ScreenGui.ResetOnSpawn = false
-
--- Nút tròn nổi 'G'
-OpenCloseBtn.Name = "OpenCloseBtn"
-OpenCloseBtn.Parent = ScreenGui
-OpenCloseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-OpenCloseBtn.Position = UDim2.new(0.02, 0, 0.15, 0)
-OpenCloseBtn.Size = UDim2.new(0, 35, 0, 35)
-OpenCloseBtn.Font = Enum.Font.SourceSansBold
-OpenCloseBtn.Text = "G"
-OpenCloseBtn.TextColor3 = Color3.fromRGB(0, 225, 255)
-OpenCloseBtn.TextSize = 20
-OpenCloseBtn.Active = true
-OpenCloseBtn.Draggable = true
-
-OpenCorner.CornerRadius = UDim.new(1, 0)
-OpenCorner.Parent = OpenCloseBtn
-
--- Main Frame
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-MainFrame.Position = UDim2.new(0.08, 0, 0.2, 0)
-MainFrame.Size = UDim2.new(0, 230, 0, 375)
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.ClipsDescendants = true
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
-MainCorner.Parent = MainFrame
-
--- Title Bar (Panel Gemini | FPS)
-Title.Name = "Title"
-Title.Parent = MainFrame
-Title.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-Title.Size = UDim2.new(1, 0, 0, 35)
-Title.Font = Enum.Font.SourceSansBold
-Title.Text = "  Panel Gemini | FPS: --"
-Title.TextColor3 = Color3.fromRGB(0, 225, 255)
-Title.TextSize = 15
-Title.TextXAlignment = Enum.TextXAlignment.Left
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10)
-TitleCorner.Parent = Title
-
--- CẬP NHẬT FPS LÊN TIÊU ĐỀ
-local lastTime = tick()
-local frameCount = 0
-
-RunService.RenderStepped:Connect(function()
-    if _G.ScriptVersion ~= currentVersion then return end
-    frameCount = frameCount + 1
-    local currentTime = tick()
-    if currentTime - lastTime >= 1 then
-        local fps = math.floor(frameCount / (currentTime - lastTime))
-        Title.Text = "  Panel Gemini | FPS: " .. tostring(fps)
-        frameCount = 0
-        lastTime = currentTime
     end
-end)
+})
 
--- Nút Thu Gọn (-) và Xòe Ra (^)
-MinimizeBtn.Name = "MinimizeBtn"
-MinimizeBtn.Parent = Title
-MinimizeBtn.BackgroundTransparency = 1
-MinimizeBtn.Position = UDim2.new(0.8, 0, 0, 0)
-MinimizeBtn.Size = UDim2.new(0.2, 0, 1, 0)
-MinimizeBtn.Font = Enum.Font.SourceSansBold
-MinimizeBtn.Text = "-"
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeBtn.TextSize = 22
+local MiscSection2 = MiscTab:Section({ Title = "Tối Ưu Đồ Họa" })
 
--- Content Frame
-ContentFrame.Name = "ContentFrame"
-ContentFrame.Parent = MainFrame
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.Position = UDim2.new(0, 0, 0, 35)
-ContentFrame.Size = UDim2.new(1, 0, 1, -35)
-
--- Status Bar
-PlotStatus.Name = "PlotStatus"
-PlotStatus.Parent = ContentFrame
-PlotStatus.BackgroundTransparency = 1
-PlotStatus.Position = UDim2.new(0.05, 0, 0.02, 0)
-PlotStatus.Size = UDim2.new(0.9, 0, 0, 20)
-PlotStatus.Font = Enum.Font.SourceSansItalic
-PlotStatus.Text = "Plot: Standby..."
-PlotStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
-PlotStatus.TextSize = 14
-
-local function updatePlotUI()
-    _G.MyPlot = findMyPlot()
-    if _G.MyPlot then
-        PlotStatus.Text = "Plot: " .. _G.MyPlot.Name
-        PlotStatus.TextColor3 = Color3.fromRGB(50, 255, 100)
-    else
-        PlotStatus.Text = "Plot: Không tìm thấy"
-        PlotStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+-- FPS BOOTER
+MiscSection2:Button({
+    Title = "FPS BOOTER",
+    Desc = "Xóa Texture, Effect, Shadows để tối ưu FPS",
+    Callback = function()
+        local Terrain = workspace:FindFirstChildOfClass('Terrain')
+        if Terrain then
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveSpeed = 0
+            Terrain.WaterReflectance = 0
+            Terrain.WaterTransparency = 0
+        end
+        
+        game:GetService("Lighting").GlobalShadows = false
+        game:GetService("Lighting").FogEnd = 9e9
+        
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.Reflectance = 0
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v:Destroy()
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Enabled = false
+            end
+        end
+        
+        WindUI:Notify({ Title = "FPS BOOTER", Content = "Đã tối ưu hóa FPS!", Duration = 3 })
     end
-end
-
--- Fruit Input
-FruitInput.Name = "FruitInput"
-FruitInput.Parent = ContentFrame
-FruitInput.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-FruitInput.Position = UDim2.new(0.08, 0, 0.09, 0)
-FruitInput.Size = UDim2.new(0.84, 0, 0, 28)
-FruitInput.Font = Enum.Font.SourceSans
-FruitInput.PlaceholderText = "Số trái / khung (1, 2...)"
-FruitInput.Text = "1"
-FruitInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-FruitInput.TextSize = 14
-
-local InputCorner = Instance.new("UICorner")
-InputCorner.CornerRadius = UDim.new(0, 6)
-InputCorner.Parent = FruitInput
-
-FruitInput.FocusLost:Connect(function()
-    local num = tonumber(FruitInput.Text)
-    if num and num > 0 then
-        _G.FruitBatchLimit = math.floor(num)
-    else
-        FruitInput.Text = tostring(_G.FruitBatchLimit)
-    end
-end)
-
--- Button 1: Auto Harvest 
-HarvestBtn.Name = "HarvestBtn"
-HarvestBtn.Parent = ContentFrame
-HarvestBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-HarvestBtn.Position = UDim2.new(0.08, 0, 0.20, 0)
-HarvestBtn.Size = UDim2.new(0.84, 0, 0, 28)
-HarvestBtn.Font = Enum.Font.SourceSansBold
-HarvestBtn.Text = "Auto Harvest: OFF"
-HarvestBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-HarvestBtn.TextSize = 14
-
-local HarvestCorner = Instance.new("UICorner")
-HarvestCorner.CornerRadius = UDim.new(0, 6)
-HarvestCorner.Parent = HarvestBtn
-
-HarvestBtn.MouseButton1Click:Connect(function()
-    _G.AutoHarvest = not _G.AutoHarvest
-    if _G.AutoHarvest then
-        updatePlotUI()
-        HarvestBtn.Text = "Auto Harvest: ON"
-        HarvestBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-    else
-        HarvestBtn.Text = "Auto Harvest: OFF"
-        HarvestBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-    end
-end)
-
--- Button 2: Auto Collect Seed 
-CollectBtn.Name = "CollectBtn"
-CollectBtn.Parent = ContentFrame
-CollectBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-CollectBtn.Position = UDim2.new(0.08, 0, 0.31, 0)
-CollectBtn.Size = UDim2.new(0.84, 0, 0, 28)
-CollectBtn.Font = Enum.Font.SourceSansBold
-CollectBtn.Text = "Auto Collect Seed (30m): OFF"
-CollectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CollectBtn.TextSize = 13
-
-local CollectCorner = Instance.new("UICorner")
-CollectCorner.CornerRadius = UDim.new(0, 6)
-CollectCorner.Parent = CollectBtn
-
-CollectBtn.MouseButton1Click:Connect(function()
-    _G.AutoCollectSeed = not _G.AutoCollectSeed
-    if _G.AutoCollectSeed then
-        CollectBtn.Text = "Auto Collect Seed (30m): ON"
-        CollectBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-    else
-        CollectBtn.Text = "Auto Collect Seed (30m): OFF"
-        CollectBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-    end
-end)
-
--- Button 3: Hide All Garden
-HideAllBtn.Name = "HideAllBtn"
-HideAllBtn.Parent = ContentFrame
-HideAllBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-HideAllBtn.Position = UDim2.new(0.08, 0, 0.42, 0)
-HideAllBtn.Size = UDim2.new(0.84, 0, 0, 28)
-HideAllBtn.Font = Enum.Font.SourceSansBold
-HideAllBtn.Text = "Hide All Garden: OFF"
-HideAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-HideAllBtn.TextSize = 14
-
-local HideAllCorner = Instance.new("UICorner")
-HideAllCorner.CornerRadius = UDim.new(0, 6)
-HideAllCorner.Parent = HideAllBtn
-
-HideAllBtn.MouseButton1Click:Connect(function()
-    _G.HideAllGarden = not _G.HideAllGarden
-    if _G.HideAllGarden then
-        toggleAllGarden(true)
-        HideAllBtn.Text = "Hide All Garden: ON"
-        HideAllBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-    else
-        toggleAllGarden(false)
-        HideAllBtn.Text = "Hide All Garden: OFF"
-        HideAllBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-    end
-end)
-
--- Button 4: Hide Me Garden
-HideMeBtn.Name = "HideMeBtn"
-HideMeBtn.Parent = ContentFrame
-HideMeBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-HideMeBtn.Position = UDim2.new(0.08, 0, 0.53, 0)
-HideMeBtn.Size = UDim2.new(0.84, 0, 0, 28)
-HideMeBtn.Font = Enum.Font.SourceSansBold
-HideMeBtn.Text = "Hide Me Garden: OFF"
-HideMeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-HideMeBtn.TextSize = 14
-
-local HideMeCorner = Instance.new("UICorner")
-HideMeCorner.CornerRadius = UDim.new(0, 6)
-HideMeCorner.Parent = HideMeBtn
-
-HideMeBtn.MouseButton1Click:Connect(function()
-    _G.HideMePlot = not _G.HideMePlot
-    if _G.HideMePlot then
-        updatePlotUI()
-        toggleMePlot(true)
-        HideMeBtn.Text = "Hide Me Garden: ON"
-        HideMeBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-    else
-        toggleMePlot(false)
-        HideMeBtn.Text = "Hide Me Garden: OFF"
-        HideMeBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-    end
-end)
-
--- Button 5: FPS Booster
-FPSBtn.Name = "FPSBtn"
-FPSBtn.Parent = ContentFrame
-FPSBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-FPSBtn.Position = UDim2.new(0.08, 0, 0.64, 0)
-FPSBtn.Size = UDim2.new(0.84, 0, 0, 28)
-FPSBtn.Font = Enum.Font.SourceSansBold
-FPSBtn.Text = "FPS Booster: OFF"
-FPSBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-FPSBtn.TextSize = 14
-
-local FPSCorner = Instance.new("UICorner")
-FPSCorner.CornerRadius = UDim.new(0, 6)
-FPSCorner.Parent = FPSBtn
-
-FPSBtn.MouseButton1Click:Connect(function()
-    if not _G.FPSBooster then
-        _G.FPSBooster = true
-        enableFPSBooster()
-        FPSBtn.Text = "FPS Booster: ON"
-        FPSBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-    end
-end)
-
--- LOGIC THU GỌN (-) VÀ XÒE RA (^)
-local isMinimized = false
-MinimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        ContentFrame.Visible = false
-        MainFrame:TweenSize(UDim2.new(0, 230, 0, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.15, true)
-        MinimizeBtn.Text = "^"
-    else
-        MainFrame:TweenSize(UDim2.new(0, 230, 0, 375), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.15, true, function()
-            ContentFrame.Visible = true
-        end)
-        MinimizeBtn.Text = "-"
-    end
-end)
-
--- LOGIC ẨN / HIỆN TOÀN BỘ MENU (NÚT NỔI 'G' HOẶC PHÍM 'K')
-local function toggleUI()
-    MainFrame.Visible = not MainFrame.Visible
-end
-
-OpenCloseBtn.MouseButton1Click:Connect(toggleUI)
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.K then
-        toggleUI()
-    end
-end)
+})
