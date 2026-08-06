@@ -1,16 +1,15 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Scan workspace.Gardens Once)
+-- PANEL GEMINI - GAG2 (Track & Save Plot Exact Path)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
--- Link loadstring chính thức từ Releases của Footagesus
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 -- 1. TẠO WINDOW CHÍNH
 local Window = WindUI:CreateWindow({
     Title = "Panel Gemini",
     Author = "WhiteSs",
-    Icon = "sprout", -- Icon mầm cây
+    Icon = "sprout",
     Folder = "GeminiGAG2",
     Size = UDim2.fromOffset(580, 460),
     Transparent = true,
@@ -32,46 +31,59 @@ MainSection:Paragraph({
     Desc = "Script được làm bởi WhiteSs"
 })
 
--- Status Paragraph
 local StatusParagraph = MainSection:Paragraph({
     Title = "📊 Status Hệ Thống",
-    Desc = "Đang quét danh sách Plot..."
+    Desc = "Đang kiểm tra Plot trong game..."
 })
 
--- Logic Quét Plot Trong workspace.Gardens (Chạy 1 lần duy nhất khi bật script)
 local StatsService = game:GetService("Stats")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local function CheckMyPlotOnce()
-    local myPlotName = "Không tìm thấy"
-    
+-- =========================================================
+-- LOGIC KIỂM TRA VÀ LƯU THÔNG TIN PLOT KHI VÀO GAME
+-- =========================================================
+local SavedPlotName = "Không tìm thấy"
+local SavedPlotObject = nil
+
+local function TrackAndSavePlot()
     local gardens = workspace:FindFirstChild("Gardens")
     if gardens then
-        -- Lặp qua tất cả các plot trong workspace.Gardens
         for _, plot in pairs(gardens:GetChildren()) do
             -- Kiểm tra xem plot có chứa Owner trùng với LocalPlayer không
             local ownerObj = plot:FindFirstChild("Owner")
+            local isMine = false
+            
             if ownerObj then
                 if ownerObj:IsA("ObjectValue") and ownerObj.Value == LocalPlayer then
-                    myPlotName = plot.Name
-                    break
+                    isMine = true
                 elseif ownerObj:IsA("StringValue") and (ownerObj.Value == LocalPlayer.Name or ownerObj.Value == tostring(LocalPlayer.UserId)) then
-                    myPlotName = plot.Name
-                    break
+                    isMine = true
                 end
             end
+
+            -- Nếu tìm thấy plot của mình hoặc lấy plot1/plot2/plot3 đầu tiên có trong Gardens
+            if isMine then
+                SavedPlotObject = plot
+                SavedPlotName = "workspace.Gardens." .. plot.Name
+                break
+            end
+        end
+
+        -- Dự phòng: Nếu game không để Owner, tự lấy plot đầu tiên tìm thấy trong Gardens
+        if not SavedPlotObject and #gardens:GetChildren() > 0 then
+            local firstPlot = gardens:GetChildren()[1]
+            SavedPlotObject = firstPlot
+            SavedPlotName = "workspace.Gardens." .. firstPlot.Name
         end
     end
-    
-    return myPlotName
 end
 
--- Gọi hàm check đúng 1 lần khi load UI
-local trackedPlot = CheckMyPlotOnce()
+-- Chạy lưu thông tin Plot 1 lần duy nhất lúc bật script
+TrackAndSavePlot()
 
--- Cập nhật FPS / Ping realtime, giữ nguyên Plot đã check 1 lần
+-- Vòng lặp hiển thị FPS | Ping | MS và Plot đã lưu ở trên
 task.spawn(function()
     while task.wait(0.5) do
         local fps = math.floor(1 / math.max(RunService.RenderStepped:Wait(), 0.001))
@@ -80,7 +92,7 @@ task.spawn(function()
 
         StatusParagraph:SetDesc(string.format(
             "FPS: %d | Ping: %dms | MS: %dms\nPlot: %s\nScript được làm bởi WhiteSs | Gemini GAG2",
-            fps, ping, ms, trackedPlot
+            fps, ping, ms, SavedPlotName
         ))
     end
 end)
@@ -90,7 +102,6 @@ end)
 ---------------------------------------------------------
 local AutoSection1 = AutoTab:Section({ Title = "Thu Hoạch & Hạt Giống" })
 
--- FruitHarvest Input
 _G.FruitHarvestAmount = 1
 AutoSection1:Input({
     Title = "FruitHarvest",
@@ -103,7 +114,6 @@ AutoSection1:Input({
     end
 })
 
--- Auto Harvest Toggle
 _G.AutoHarvest = false
 AutoSection1:Toggle({
     Title = "Auto Harvest",
@@ -118,7 +128,6 @@ AutoSection1:Toggle({
     end
 })
 
--- Auto Collect Seed Toggle
 _G.AutoCollectSeed = false
 AutoSection1:Toggle({
     Title = "Auto Collect Seed",
@@ -135,7 +144,6 @@ AutoSection1:Toggle({
 
 local AutoSection2 = AutoTab:Section({ Title = "Tự Động Bán Đồ" })
 
--- DelaySell Input
 _G.DelaySell = 0.1
 AutoSection2:Input({
     Title = "DelaySell",
@@ -149,7 +157,6 @@ AutoSection2:Input({
     end
 })
 
--- Auto Sell Inventory Toggle
 _G.AutoSell = false
 AutoSection2:Toggle({
     Title = "Auto Sell Inventory",
@@ -189,8 +196,8 @@ MiscSection1:Toggle({
         local gardens = workspace:FindFirstChild("Gardens")
         if gardens then
             for _, obj in pairs(gardens:GetChildren()) do
-                local isMyPlot = (obj.Name == trackedPlot)
-                
+                -- So sánh với Plot đã lưu
+                local isMyPlot = (SavedPlotObject and obj == SavedPlotObject)
                 if not isMyPlot then
                     for _, child in pairs(obj:GetDescendants()) do
                         if child:IsA("BasePart") then
@@ -213,18 +220,11 @@ MiscSection1:Toggle({
     Callback = function(Value)
         _G.HideYouGarden = Value
         
-        local gardens = workspace:FindFirstChild("Gardens")
-        if gardens then
-            for _, obj in pairs(gardens:GetChildren()) do
-                local isMyPlot = (obj.Name == trackedPlot)
-                
-                if isMyPlot then
-                    for _, child in pairs(obj:GetDescendants()) do
-                        if child:IsA("BasePart") then
-                            child.Transparency = Value and 1 or 0
-                            child.CanCollide = not Value
-                        end
-                    end
+        if SavedPlotObject then
+            for _, child in pairs(SavedPlotObject:GetDescendants()) do
+                if child:IsA("BasePart") then
+                    child.Transparency = Value and 1 or 0
+                    child.CanCollide = not Value
                 end
             end
         end
@@ -233,7 +233,6 @@ MiscSection1:Toggle({
 
 local MiscSection2 = MiscTab:Section({ Title = "Tối Ưu Đồ Họa" })
 
--- FPS BOOTER
 MiscSection2:Button({
     Title = "FPS BOOTER",
     Desc = "Xóa Texture, Effect, Shadows để tối ưu FPS",
