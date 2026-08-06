@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Track & Save Plot Exact Path)
+-- PANEL GEMINI - GAG2 (Track Exact Plot)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -42,48 +42,62 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- =========================================================
--- LOGIC KIỂM TRA VÀ LƯU THÔNG TIN PLOT KHI VÀO GAME
+-- LOGIC KIỂM TRA CHÍNH XÁC PLOT CỦA BẠN (1 LẦN DUY NHẤT)
 -- =========================================================
-local SavedPlotName = "Không tìm thấy"
+local SavedPlotName = "workspace.Gardens.plot1" -- Mặc định chuẩn nếu không quét thấy
 local SavedPlotObject = nil
 
-local function TrackAndSavePlot()
+local function TrackExactPlot()
     local gardens = workspace:FindFirstChild("Gardens")
     if gardens then
+        -- Lặp kiểm tra từng Plot cụ thể (plot1, plot2, plot3,...)
         for _, plot in pairs(gardens:GetChildren()) do
-            -- Kiểm tra xem plot có chứa Owner trùng với LocalPlayer không
-            local ownerObj = plot:FindFirstChild("Owner")
-            local isMine = false
+            local isMyPlot = false
             
+            -- 1. Check Owner Object / String / Attribute
+            local ownerObj = plot:FindFirstChild("Owner") or plot:FindFirstChild("Player") or plot:FindFirstChild("ClaimedBy")
             if ownerObj then
                 if ownerObj:IsA("ObjectValue") and ownerObj.Value == LocalPlayer then
-                    isMine = true
-                elseif ownerObj:IsA("StringValue") and (ownerObj.Value == LocalPlayer.Name or ownerObj.Value == tostring(LocalPlayer.UserId)) then
-                    isMine = true
+                    isMyPlot = true
+                elseif ownerObj:IsA("StringValue") or ownerObj:IsA("IntValue") then
+                    local val = tostring(ownerObj.Value)
+                    if val == LocalPlayer.Name or val == tostring(LocalPlayer.UserId) then
+                        isMyPlot = true
+                    end
+                end
+            end
+            
+            -- 2. Check Attribute nếu không có Object
+            if not isMyPlot then
+                for attrName, attrVal in pairs(plot:GetAttributes()) do
+                    if tostring(attrVal) == LocalPlayer.Name or tostring(attrVal) == tostring(LocalPlayer.UserId) then
+                        isMyPlot = true
+                        break
+                    end
                 end
             end
 
-            -- Nếu tìm thấy plot của mình hoặc lấy plot1/plot2/plot3 đầu tiên có trong Gardens
-            if isMine then
+            -- Nếu xác định đúng là Plot của bản thân
+            if isMyPlot then
                 SavedPlotObject = plot
                 SavedPlotName = "workspace.Gardens." .. plot.Name
-                break
+                return
             end
         end
 
-        -- Dự phòng: Nếu game không để Owner, tự lấy plot đầu tiên tìm thấy trong Gardens
-        if not SavedPlotObject and #gardens:GetChildren() > 0 then
-            local firstPlot = gardens:GetChildren()[1]
-            SavedPlotObject = firstPlot
-            SavedPlotName = "workspace.Gardens." .. firstPlot.Name
+        -- Dự phòng: Nếu game chưa set Owner nhưng có plot1 trong workspace.Gardens
+        local plot1 = gardens:FindFirstChild("plot1") or gardens:FindFirstChild("Plot1")
+        if plot1 then
+            SavedPlotObject = plot1
+            SavedPlotName = "workspace.Gardens." .. plot1.Name
         end
     end
 end
 
--- Chạy lưu thông tin Plot 1 lần duy nhất lúc bật script
-TrackAndSavePlot()
+-- Chạy dò và lưu thông tin Plot 1 lần duy nhất ngay khi bật UI
+TrackExactPlot()
 
--- Vòng lặp hiển thị FPS | Ping | MS và Plot đã lưu ở trên
+-- Vòng lặp hiển thị realtime FPS, Ping, MS và Plot
 task.spawn(function()
     while task.wait(0.5) do
         local fps = math.floor(1 / math.max(RunService.RenderStepped:Wait(), 0.001))
@@ -196,8 +210,7 @@ MiscSection1:Toggle({
         local gardens = workspace:FindFirstChild("Gardens")
         if gardens then
             for _, obj in pairs(gardens:GetChildren()) do
-                -- So sánh với Plot đã lưu
-                local isMyPlot = (SavedPlotObject and obj == SavedPlotObject)
+                local isMyPlot = (SavedPlotObject and obj == SavedPlotObject) or ("workspace.Gardens." .. obj.Name == SavedPlotName)
                 if not isMyPlot then
                     for _, child in pairs(obj:GetDescendants()) do
                         if child:IsA("BasePart") then
@@ -220,11 +233,17 @@ MiscSection1:Toggle({
     Callback = function(Value)
         _G.HideYouGarden = Value
         
-        if SavedPlotObject then
-            for _, child in pairs(SavedPlotObject:GetDescendants()) do
-                if child:IsA("BasePart") then
-                    child.Transparency = Value and 1 or 0
-                    child.CanCollide = not Value
+        local gardens = workspace:FindFirstChild("Gardens")
+        if gardens then
+            for _, obj in pairs(gardens:GetChildren()) do
+                local isMyPlot = (SavedPlotObject and obj == SavedPlotObject) or ("workspace.Gardens." .. obj.Name == SavedPlotName)
+                if isMyPlot then
+                    for _, child in pairs(obj:GetDescendants()) do
+                        if child:IsA("BasePart") then
+                            child.Transparency = Value and 1 or 0
+                            child.CanCollide = not Value
+                        end
+                    end
                 end
             end
         end
