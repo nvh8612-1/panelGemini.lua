@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Full WindUI + Exact Attributes Detector)
+-- PANEL GEMINI - GAG2 (Full WindUI + Exact Attributes Detector + Shop)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local StatsService = game:GetService("Stats")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
 -- Link WindUI
@@ -26,6 +27,7 @@ local Window = WindUI:CreateWindow({
 -- 2. KHỞI TẠO TABS
 local MainTab = Window:Tab({ Title = "Main", Icon = "home" })
 local AutoTab = Window:Tab({ Title = "Auto", Icon = "repeat" })
+local ShopTab = Window:Tab({ Title = "Shop", Icon = "shopping-cart" })
 local MiscTab = Window:Tab({ Title = "Misc", Icon = "sliders" })
 
 -- =========================================================
@@ -312,7 +314,7 @@ AutoSection2:Toggle({
         task.spawn(function()
             local Networking
             pcall(function()
-                Networking = require(game:GetService("ReplicatedStorage"):WaitForChild("SharedModules"):WaitForChild("Networking"))
+                Networking = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Networking"))
             end)
 
             while _G.AutoSell do
@@ -320,6 +322,98 @@ AutoSection2:Toggle({
                     Networking.NPCS.SellAll:Fire()
                 end
                 task.wait(_G.DelaySell or 0.1)
+            end
+        end)
+    end
+})
+
+---------------------------------------------------------
+-- MỤC: SHOP
+---------------------------------------------------------
+local ShopSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống" })
+
+local AllSeeds = {
+    "Carrot", "Strawberry", "Blueberry", "Tulip", "Tomato", 
+    "Apple", "Bamboo", "Corn", "Cactus", "Pineapple", 
+    "Mushroom", "Green Bean", "Banana", "Grape", "Coconut", 
+    "Maple Coconut", "Mango", "Rocket Pop", "Dragon Fruit", "Acorn", 
+    "Cherry", "Sunflower", "Fire Fern", "Venus Fly Trap", "Pomegranate", 
+    "Poison Apple", "Venom Spitter", "Moon Bloom", "Sun Bloom", "Hypno Bloom", 
+    "Dragon's Breath", "Star Fruit", "Conifer Cone", "Amber Cranberry", "Atlantic Giant Pumpkin", 
+    "Maple Carrot", "Maple Strawberry", "Maple Blueberry", "Maple Tulip", "Maple Tomato", 
+    "Maple Apple", "Maple Bamboo", "Maple Corn", "Maple Cactus", "Maple Pineapple", 
+    "Maple Mushroom", "Maple Green Bean", "Maple Banana", "Maple Grape", "Maple Mango", 
+    "Maple Dragon Fruit", "Maple Acorn", "Maple Cherry", "Maple Sunflower", "Maple Venus Fly Trap", 
+    "Maple Pomegranate", "Maple Poison Apple", "Maple Venom Spitter"
+}
+
+_G.SelectedSeed = AllSeeds[1]
+_G.AutoBuySeed = false
+_G.AutoBuyAllSeeds = false
+
+-- Hàm Mua Hạt Giống
+local function buySeed(seedName)
+    pcall(function()
+        local Networking
+        pcall(function()
+            Networking = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Networking"))
+        end)
+        
+        if Networking and Networking.NPCS and Networking.NPCS.BuyItem then
+            Networking.NPCS.BuyItem:Fire(seedName)
+        else
+            local buyRemote = ReplicatedStorage:FindFirstChild("BuyItem", true) or ReplicatedStorage:FindFirstChild("PurchaseItem", true)
+            if buyRemote and buyRemote:IsA("RemoteEvent") then
+                buyRemote:FireServer(seedName)
+            end
+        end
+    end)
+end
+
+-- Chọn 1 hạt giống cụ thể
+ShopSection:Dropdown({
+    Title = "Chọn Hạt Giống",
+    Desc = "Chọn hạt bạn muốn tự động mua",
+    Values = AllSeeds,
+    Value = AllSeeds[1],
+    Callback = function(Value)
+        _G.SelectedSeed = Value
+    end
+})
+
+-- Tự động mua hạt đã chọn
+ShopSection:Toggle({
+    Title = "Auto Buy Selected Seed",
+    Desc = "Tự động mua liên tục hạt đã chọn ở trên",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoBuySeed = Value
+        task.spawn(function()
+            while _G.AutoBuySeed do
+                if _G.SelectedSeed then
+                    buySeed(_G.SelectedSeed)
+                end
+                task.wait(0.2)
+            end
+        end)
+    end
+})
+
+-- Tự động mua TOÀN BỘ hạt giống
+ShopSection:Toggle({
+    Title = "Auto Buy All Seed",
+    Desc = "Tự động lặp và mua toàn bộ 58 loại hạt giống trong shop",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoBuyAllSeeds = Value
+        task.spawn(function()
+            while _G.AutoBuyAllSeeds do
+                for _, seedName in ipairs(AllSeeds) do
+                    if not _G.AutoBuyAllSeeds then break end
+                    buySeed(seedName)
+                    task.wait(0.05) -- Delay ngắn giữa các hạt để tránh spam server
+                end
+                task.wait(0.5) -- Delay sau khi duyệt xong 1 lượt toàn bộ danh sách
             end
         end)
     end
