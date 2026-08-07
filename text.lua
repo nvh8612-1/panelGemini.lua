@@ -385,7 +385,7 @@ ShopSection:Dropdown({
 -- Tự động mua hạt đã chọn (Bắn không delay)
 ShopSection:Toggle({
     Title = "Auto Buy Selected Seed (Fast)",
-    Desc = "Gửi gói tin mua liên tục không delay",
+    Desc = "Mua những hạt được chọn",
     Value = false,
     Callback = function(Value)
         _G.AutoBuySeed = Value
@@ -403,7 +403,7 @@ ShopSection:Toggle({
 -- Tự động mua TOÀN BỘ hạt giống (Xả toàn bộ buffer)
 ShopSection:Toggle({
     Title = "Auto Buy All Seed (Fast)",
-    Desc = "Xả toàn bộ 58 gói tin mua hạt lên Server cùng lúc",
+    Desc = "Mua toàn bộ",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyAllSeeds = Value
