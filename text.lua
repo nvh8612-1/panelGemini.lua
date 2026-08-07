@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Full Seeds + Gear Tab + Packet Buffer Fast & Smooth)
+-- PANEL GEMINI - GAG2 (Full Seeds + Full Gear + White Screen Anti-AFK)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -8,6 +8,8 @@ local TweenService = game:GetService("TweenService")
 local StatsService = game:GetService("Stats")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 -- Link WindUI
@@ -35,14 +37,13 @@ local MiscTab = Window:Tab({ Title = "Misc", Icon = "sliders" })
 -- LOGIC DÒ PLOT CHUẨN ĐÉT QUA ATTRIBUTES (OWNER & OWNERUSERID)
 -- =========================================================
 _G.MyPlot = nil
-local SavedPlotName = "Không tìm thấy"
+local SavedPlotName = "workspace.Gardens.Plot1"
 
 local function findMyPlot()
     local gardens = workspace:FindFirstChild("Gardens")
     if not gardens then return nil end
 
     for _, plot in ipairs(gardens:GetChildren()) do
-        -- 1. Đọc Attributes chuẩn từ game (Owner / OwnerUserId)
         local attrOwner = plot:GetAttribute("Owner")
         local attrUserId = plot:GetAttribute("OwnerUserId")
 
@@ -53,7 +54,6 @@ local function findMyPlot()
             return plot
         end
 
-        -- 2. Dự phòng: Kiểm tra Value Object
         local ownerValue = plot:FindFirstChild("Owner") or plot:FindFirstChild("OwnerName") or plot:FindFirstChild("Player")
         if ownerValue then
             if (ownerValue:IsA("StringValue") and ownerValue.Value == LocalPlayer.Name) or
@@ -63,7 +63,6 @@ local function findMyPlot()
         end
     end
 
-    -- 3. Dự phòng: Đo khoảng cách tới nhân vật
     local character = LocalPlayer.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
         local rootPos = character.HumanoidRootPart.Position
@@ -88,10 +87,25 @@ local function findMyPlot()
     return gardens:FindFirstChild("Plot1") or gardens:FindFirstChild("plot1") or gardens:GetChildren()[1]
 end
 
--- Chạy dò 1 lần duy nhất khi load Script
 _G.MyPlot = findMyPlot()
 if _G.MyPlot then
     SavedPlotName = "workspace.Gardens." .. _G.MyPlot.Name
+end
+
+-- Hàm lấy giá trị Leaves và định dạng số
+local function getLeavesValue()
+    local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+    if leaderstats then
+        local leaves = leaderstats:FindFirstChild("Leaves")
+        if leaves then
+            return leaves.Value
+        end
+    end
+    return 0
+end
+
+local function formatNumber(n)
+    return tostring(n):reverse():gsub("%d%d%d", "%1,"):reverse():gsub("^,", "")
 end
 
 ---------------------------------------------------------
@@ -100,26 +114,39 @@ end
 local MainSection = MainTab:Section({ Title = "Thông Tin Hub" })
 
 MainSection:Paragraph({
-    Title = "Gemini GAG2",
-    Desc = "Script được làm bởi WhiteSs"
+    Title = "Panel Gemini | Grow A Garden 2",
+    Desc = "=> WhiteSs"
 })
 
 local StatusParagraph = MainSection:Paragraph({
     Title = "📊 Status Hệ Thống",
-    Desc = "Đang tải thông số..."
+    Desc = "Đang tải dữ liệu..."
 })
 
--- Vòng lặp Realtime FPS / Ping / Status Plot
 task.spawn(function()
     while task.wait(0.5) do
         local fps = math.floor(1 / math.max(RunService.RenderStepped:Wait(), 0.001))
         local ping = math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
         local ms = math.floor(RunService.RenderStepped:Wait() * 1000)
+        local leaves = getLeavesValue()
 
-        StatusParagraph:SetDesc(string.format(
-            "FPS: %d | Ping: %dms | MS: %dms\nPlot: %s\nScript được làm bởi WhiteSs | Gemini GAG2",
-            fps, ping, ms, SavedPlotName
-        ))
+        local formattedText = string.format(
+            "👤 Người chơi: %s\n\n" ..
+            "🍁 Leaves : %s\n\n" ..
+            "⚡ FPS: %d | Ping: %dms | Frame: %dms\n\n" ..
+            "🏡 Vườn (Plot): %s\n\n" ..
+            "Trạng thái: Đang hoạt động ổn định\n\n" ..
+            "Phiên bản: Gemini GAG2 - Update Fall Harvest\n\n" ..
+            "Nâng cấp: Shop,Gear, Chức năng thu hoạch,Bán,Ẩn vường,FPS, Chức năng AFK mới ,...",
+            LocalPlayer.Name,
+            formatNumber(leaves),
+            fps,
+            ping,
+            ms,
+            SavedPlotName
+        )
+
+        StatusParagraph:SetDesc(formattedText)
     end
 end)
 
@@ -143,7 +170,6 @@ AutoSection1:Input({
     end
 })
 
--- AUTO HARVEST LOGIC
 local function triggerHarvestPrompt(prompt)
     if not prompt then return end
     pcall(function()
@@ -206,7 +232,6 @@ AutoSection1:Toggle({
     end
 })
 
--- AUTO COLLECT SEED LOGIC
 local function triggerPickupPrompt(prompt)
     if not prompt then return end
     pcall(function()
@@ -336,7 +361,7 @@ local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules")
     :WaitForChild("RemoteEvent")
 
 ---------------------------------------------------------
--- MỤC: SHOP (HẠT GIỐNG - HEADER \159\000)
+-- MỤC: SHOP
 ---------------------------------------------------------
 local ShopSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống" })
 
@@ -359,7 +384,6 @@ _G.SelectedSeeds = {}
 _G.AutoBuySeed = false
 _G.AutoBuyAllSeeds = false
 
--- Cache sẵn Buffer Hạt Giống (Header \159\000)
 local SeedBuffers = {}
 for _, name in ipairs(AllSeeds) do
     local payload = "\159\000" .. string.char(#name) .. name
@@ -373,7 +397,6 @@ local function buySeedFast(seedName)
     end
 end
 
--- Lọc loại Hạt
 local function filterSeeds(filterType)
     local filtered = {}
     for _, name in ipairs(AllSeeds) do
@@ -456,20 +479,21 @@ ShopSection:Toggle({
 })
 
 ---------------------------------------------------------
--- MỤC: GEAR (DỤNG CỤ - HEADER \163\000)
+-- MỤC: GEAR
 ---------------------------------------------------------
 local GearSection = GearTab:Section({ Title = "Cửa Hàng Dụng Cụ (Gear Shop)" })
 
 local AllGears = {
     "Syrup Watering Can",
-    "Syrup Sprinkler"
+    "Syrup Sprinkler",
+    "Super Syrup Watering Can",
+    "Super Syrup Sprinkler"
 }
 
 _G.SelectedGears = {}
 _G.AutoBuyGear = false
 _G.AutoBuyAllGears = false
 
--- Cache sẵn Buffer Gear (Header \163\000)
 local GearBuffers = {}
 for _, name in ipairs(AllGears) do
     local payload = "\163\000" .. string.char(#name) .. name
@@ -483,10 +507,9 @@ local function buyGearFast(gearName)
     end
 end
 
--- Dropdown Chọn Nhiều Gear
 GearSection:Dropdown({
     Title = "Chọn Gear (Multi-Select)",
-    Desc = "Tích chọn 1 hoặc nhiều Dụng Cụ muốn mua",
+    Desc = "Tích chọn Dụng Cụ muốn mua",
     Values = AllGears,
     Multi = true,
     Value = { AllGears[1] },
@@ -495,7 +518,6 @@ GearSection:Dropdown({
     end
 })
 
--- Toggle Mua Gear Được Chọn
 GearSection:Toggle({
     Title = "Auto Buy Selected Gear",
     Desc = "Mua lặp tất cả các Gear đã tích chọn",
@@ -517,10 +539,9 @@ GearSection:Toggle({
     end
 })
 
--- Toggle Mua Toàn Bộ Gear
 GearSection:Toggle({
     Title = "Auto Buy All Gear",
-    Desc = "Tự động mua toàn bộ danh sách Dụng Cụ (Gear)",
+    Desc = "Tự động mua tất cả loại Syrup Watering Can & Sprinkler",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyAllGears = Value
@@ -538,14 +559,13 @@ GearSection:Toggle({
 })
 
 ---------------------------------------------------------
--- MỤC: MISC
+-- MỤC: MISC (HIỆN MÀN HÌNH CHUẨN AFK CỤ THỂ)
 ---------------------------------------------------------
 local MiscSection1 = MiscTab:Section({ Title = "Tối Ưu Vườn (Garden Visibility)" })
 
--- Hide Others Garden
 MiscSection1:Toggle({
     Title = "Hide Others Garden",
-    Desc = "Tàng hình toàn bộ garden xung quanh, không tàng hình vườn bản thân",
+    Desc = "Tàng hình toàn bộ garden xung quanh",
     Value = false,
     Callback = function(Value)
         local gardens = workspace:FindFirstChild("Gardens")
@@ -565,7 +585,6 @@ MiscSection1:Toggle({
     end
 })
 
--- Hide You Garden
 MiscSection1:Toggle({
     Title = "Hide You Garden",
     Desc = "Tàng hình vườn của bản thân",
@@ -582,7 +601,7 @@ MiscSection1:Toggle({
     end
 })
 
-local MiscSection2 = MiscTab:Section({ Title = "Tối Ưu Đồ Họa" })
+local MiscSection2 = MiscTab:Section({ Title = "Tối Ưu Đồ Họa & Chức Năng AFK" })
 
 MiscSection2:Button({
     Title = "FPS BOOSTER",
@@ -610,6 +629,146 @@ MiscSection2:Button({
             end
         end
         
-        WindUI:Notify({ Title = "FPS BOOTER", Content = "Đã tối ưu hóa FPS!", Duration = 3 })
+        WindUI:Notify({ Title = "FPS BOOSTER", Content = "Đã tối ưu hóa FPS!", Duration = 3 })
+    end
+})
+
+-- =========================================================
+-- SYSTEM CHỨC NĂNG MÀN HÌNH TRẮNG AFK CHUẨN ĐÚNG MẪU
+-- =========================================================
+local AFKGui = nil
+local AFKTimerThread = nil
+local AFKKeyThread = nil
+local AFKSeconds = 0
+
+local function createAFKScreen(onCloseCallback)
+    if AFKGui then AFKGui:Destroy() end
+
+    AFKGui = Instance.new("ScreenGui")
+    AFKGui.Name = "Gemini_AFK_Screen"
+    AFKGui.ResetOnSpawn = false
+    
+    local parentTarget = CoreGui:FindFirstChild("RobloxGui") or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
+    AFKGui.Parent = parentTarget
+
+    -- Background Trắng Toàn Màn Hình
+    local WhiteFrame = Instance.new("Frame")
+    WhiteFrame.Size = UDim2.fromScale(1, 1)
+    WhiteFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    WhiteFrame.BorderSizePixel = 0
+    WhiteFrame.Active = true
+    WhiteFrame.Parent = AFKGui
+
+    -- Text 1: AFK 💤
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Size = UDim2.new(1, 0, 0, 80)
+    TitleLabel.Position = UDim2.new(0, 0, 0.35, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = "AFK 💤"
+    TitleLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
+    TitleLabel.TextSize = 42
+    TitleLabel.Font = Enum.Font.SourceSansBold
+    TitleLabel.Parent = WhiteFrame
+
+    -- Text 2: Status 🍁???? | FPS:?? | AFK:0:01:36
+    local InfoLabel = Instance.new("TextLabel")
+    InfoLabel.Size = UDim2.new(1, 0, 0, 50)
+    InfoLabel.Position = UDim2.new(0, 0, 0.45, 0)
+    InfoLabel.BackgroundTransparency = 1
+    InfoLabel.Text = "🍁0 | FPS: 60 | AFK: 0:00:00"
+    InfoLabel.TextColor3 = Color3.fromRGB(60, 60, 60)
+    InfoLabel.TextSize = 22
+    InfoLabel.Font = Enum.Font.SourceSansMedium
+    InfoLabel.Parent = WhiteFrame
+
+    -- Nút: | Thoát AFK |
+    local ExitButton = Instance.new("TextButton")
+    ExitButton.Size = UDim2.new(0, 160, 0, 45)
+    ExitButton.Position = UDim2.new(0.5, -80, 0.58, 0)
+    ExitButton.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+    ExitButton.BorderSizePixel = 0
+    ExitButton.Text = "| Thoát AFK |"
+    ExitButton.TextColor3 = Color3.fromRGB(20, 20, 20)
+    ExitButton.TextSize = 18
+    ExitButton.Font = Enum.Font.SourceSansBold
+    ExitButton.Parent = WhiteFrame
+
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 8)
+    UICorner.Parent = ExitButton
+
+    ExitButton.MouseButton1Click:Connect(function()
+        if onCloseCallback then
+            onCloseCallback()
+        end
+    end)
+
+    -- Vòng lặp cập nhật thời gian + thông số trên UI Trắng
+    AFKSeconds = 0
+    AFKTimerThread = task.spawn(function()
+        while _G.AntiAFK do
+            local fps = math.floor(1 / math.max(RunService.RenderStepped:Wait(), 0.001))
+            local leaves = getLeavesValue()
+            
+            local hrs = math.floor(AFKSeconds / 3600)
+            local mins = math.floor((AFKSeconds % 3600) / 60)
+            local secs = AFKSeconds % 60
+            local timeStr = string.format("%d:%02d:%02d", hrs, mins, secs)
+
+            InfoLabel.Text = string.format("🍁 %s | FPS: %d | AFK: %s", formatNumber(leaves), fps, timeStr)
+            
+            task.wait(1)
+            AFKSeconds = AFKSeconds + 1
+        end
+    end)
+
+    -- Bấm phím PC mỗi 1 phút (60 giây)
+    AFKKeyThread = task.spawn(function()
+        while _G.AntiAFK do
+            task.wait(60)
+            if _G.AntiAFK then
+                pcall(function()
+                    -- Giả lập ấn nút Space (hoặc W) qua VirtualInputManager
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                    task.wait(0.1)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                end)
+            end
+        end
+    end)
+end
+
+local function removeAFKScreen()
+    if AFKGui then
+        AFKGui:Destroy()
+        AFKGui = nil
+    end
+    if AFKTimerThread then
+        task.cancel(AFKTimerThread)
+        AFKTimerThread = nil
+    end
+    if AFKKeyThread then
+        task.cancel(AFKKeyThread)
+        AFKKeyThread = nil
+    end
+end
+
+-- Toggle Anti-AFK trong Menu
+local AFKToggle = MiscSection2:Toggle({
+    Title = "Anti-AFK (Màn Hình Trắng)",
+    Desc = "Bật màn hình trắng AFK & Bấm phím PC mỗi 1 phút",
+    Value = false,
+    Callback = function(Value)
+        _G.AntiAFK = Value
+        if Value then
+            createAFKScreen(function()
+                -- Callback khi nhấn "| Thoát AFK |" trên UI trắng -> Tắt Toggle ở Menu
+                _G.AntiAFK = false
+                AFKToggle:SetValue(false)
+                removeAFKScreen()
+            end)
+        else
+            removeAFKScreen()
+        end
     end
 })
