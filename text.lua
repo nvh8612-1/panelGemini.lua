@@ -133,7 +133,7 @@ _G.AutoCollectSeed = false
 
 AutoSection1:Input({
     Title = "FruitHarvest Amount",
-    Desc = "Số lượng quả thu hoạch / đợt (Mặc định: 1)",
+    Desc = "Số lượng Thu hoạch",
     Value = "1",
     Placeholder = "Nhập số lượng...",
     Callback = function(Text)
@@ -335,14 +335,14 @@ local ShopSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống" })
 local AllSeeds = {
     "Carrot", "Strawberry", "Blueberry", "Tulip", "Tomato", 
     "Apple", "Bamboo", "Corn", "Cactus", "Pineapple", 
-    "Mushroom", "Green Bean", "Banana", "Grape", "Coconut", 
+    "Mushroom", "Banana", "Grape", "Coconut", 
     "Maple Coconut", "Mango", "Rocket Pop", "Dragon Fruit", "Acorn", 
     "Cherry", "Sunflower", "Fire Fern", "Venus Fly Trap", "Pomegranate", 
     "Poison Apple", "Venom Spitter", "Moon Bloom", "Sun Bloom", "Hypno Bloom", 
     "Dragon's Breath", "Star Fruit", "Conifer Cone", "Amber Cranberry", "Atlantic Giant Pumpkin", 
     "Maple Carrot", "Maple Strawberry", "Maple Blueberry", "Maple Tulip", "Maple Tomato", 
     "Maple Apple", "Maple Bamboo", "Maple Corn", "Maple Cactus", "Maple Pineapple", 
-    "Maple Mushroom", "Maple Green Bean", "Maple Banana", "Maple Grape", "Maple Mango", 
+    "Maple Mushroom",  "Maple Banana", "Maple Grape", "Maple Mango", 
     "Maple Dragon Fruit", "Maple Acorn", "Maple Cherry", "Maple Sunflower", "Maple Venus Fly Trap", 
     "Maple Pomegranate", "Maple Poison Apple", "Maple Venom Spitter"
 }
@@ -373,8 +373,8 @@ end
 
 -- Chọn 1 hạt giống
 ShopSection:Dropdown({
-    Title = "Chọn Hạt Giống",
-    Desc = "Chọn hạt bạn muốn tự động mua",
+    Title = "Select Hạt Giống",
+    Desc = "Chọn hạt giống",
     Values = AllSeeds,
     Value = AllSeeds[1],
     Callback = function(Value)
@@ -385,7 +385,7 @@ ShopSection:Dropdown({
 -- Tự động mua hạt đã chọn (Tối ưu Ping: 20 lần/giây)
 ShopSection:Toggle({
     Title = "Auto Buy Selected Seed",
-    Desc = "Tự động mua liên tục hạt đã chọn (Siêu mượt, Ping ổn định)",
+    Desc = "Mua Tất Cả",
     Value = false,
     Callback = function(Value)
         _G.AutoBuySeed = Value
