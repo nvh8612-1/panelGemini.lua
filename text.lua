@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Full Seeds + Full Gear + White Screen Anti-AFK)
+-- PANEL GEMINI - GAG2 (Full Seeds + Full Gear + White Screen Anti-AFK Fixed)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -326,7 +326,7 @@ AutoSection2:Input({
     Placeholder = "0.1 hoặc 0,1",
     Callback = function(Text)
         local sanitizedText = string.gsub(Text, ",", ".")
-        local num = tonumber(Text)
+        local num = tonumber(sanitizedText)
         _G.DelaySell = (num and num >= 0) and num or 0.1
     end
 })
@@ -559,7 +559,7 @@ GearSection:Toggle({
 })
 
 ---------------------------------------------------------
--- MỤC: MISC (HIỆN MÀN HÌNH CHUẨN AFK CỤ THỂ)
+-- MỤC: MISC
 ---------------------------------------------------------
 local MiscSection1 = MiscTab:Section({ Title = "Tối Ưu Vườn (Garden Visibility)" })
 
@@ -634,7 +634,7 @@ MiscSection2:Button({
 })
 
 -- =========================================================
--- SYSTEM CHỨC NĂNG MÀN HÌNH TRẮNG AFK CHUẨN ĐÚNG MẪU
+-- SYSTEM CHỨC NĂNG MÀN HÌNH TRẮNG AFK (ĐÃ FIX TOÀN BỘ LỖI)
 -- =========================================================
 local AFKGui = nil
 local AFKTimerThread = nil
@@ -645,53 +645,76 @@ local function createAFKScreen(onCloseCallback)
     if AFKGui then AFKGui:Destroy() end
 
     AFKGui = Instance.new("ScreenGui")
-    AFKGui.Name = "Gemini_AFK_Screen"
+    AFKGui.Name = "Gemini_AFK_Screen_Fixed"
     AFKGui.ResetOnSpawn = false
-    
-    local parentTarget = CoreGui:FindFirstChild("RobloxGui") or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
+    AFKGui.IgnoreGuiInset = true -- Tràn toàn màn hình đè Topbar
+    AFKGui.DisplayOrder = 999999 -- Ưu tiên nổi lên cao nhất
+
+    -- Gắn Gui vào CoreGui hoặc PlayerGui
+    local parentTarget = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
     AFKGui.Parent = parentTarget
 
-    -- Background Trắng Toàn Màn Hình
+    -- Background Trắng Phủ 100%
     local WhiteFrame = Instance.new("Frame")
     WhiteFrame.Size = UDim2.fromScale(1, 1)
     WhiteFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     WhiteFrame.BorderSizePixel = 0
     WhiteFrame.Active = true
+    WhiteFrame.ZIndex = 9999
     WhiteFrame.Parent = AFKGui
 
-    -- Text 1: AFK 💤
+    -- Container căn giữa màn hình
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(1, 0, 0, 250)
+    Container.Position = UDim2.fromScale(0.5, 0.5)
+    Container.AnchorPoint = Vector2.new(0.5, 0.5)
+    Container.BackgroundTransparency = 1
+    Container.ZIndex = 10000
+    Container.Parent = WhiteFrame
+
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout.Padding = UDim.new(0, 15)
+    UIListLayout.Parent = Container
+
+    -- 1. Text AFK 💤
     local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Size = UDim2.new(1, 0, 0, 80)
-    TitleLabel.Position = UDim2.new(0, 0, 0.35, 0)
+    TitleLabel.LayoutOrder = 1
+    TitleLabel.Size = UDim2.new(1, 0, 0, 50)
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Text = "AFK 💤"
-    TitleLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
-    TitleLabel.TextSize = 42
+    TitleLabel.TextColor3 = Color3.fromRGB(20, 20, 20)
+    TitleLabel.TextSize = 40
     TitleLabel.Font = Enum.Font.SourceSansBold
-    TitleLabel.Parent = WhiteFrame
+    TitleLabel.ZIndex = 10001
+    TitleLabel.Parent = Container
 
-    -- Text 2: Status 🍁???? | FPS:?? | AFK:0:01:36
+    -- 2. Text Thông Số 🍁 | FPS | AFK
     local InfoLabel = Instance.new("TextLabel")
-    InfoLabel.Size = UDim2.new(1, 0, 0, 50)
-    InfoLabel.Position = UDim2.new(0, 0, 0.45, 0)
+    InfoLabel.LayoutOrder = 2
+    InfoLabel.Size = UDim2.new(1, 0, 0, 40)
     InfoLabel.BackgroundTransparency = 1
-    InfoLabel.Text = "🍁0 | FPS: 60 | AFK: 0:00:00"
-    InfoLabel.TextColor3 = Color3.fromRGB(60, 60, 60)
+    InfoLabel.Text = "🍁 0 | FPS: 60 | AFK: 0:00:00"
+    InfoLabel.TextColor3 = Color3.fromRGB(50, 50, 50)
     InfoLabel.TextSize = 22
     InfoLabel.Font = Enum.Font.SourceSansMedium
-    InfoLabel.Parent = WhiteFrame
+    InfoLabel.ZIndex = 10001
+    InfoLabel.Parent = Container
 
-    -- Nút: | Thoát AFK |
+    -- 3. Nút | Thoát AFK |
     local ExitButton = Instance.new("TextButton")
-    ExitButton.Size = UDim2.new(0, 160, 0, 45)
-    ExitButton.Position = UDim2.new(0.5, -80, 0.58, 0)
-    ExitButton.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+    ExitButton.LayoutOrder = 3
+    ExitButton.Size = UDim2.new(0, 180, 0, 45)
+    ExitButton.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
     ExitButton.BorderSizePixel = 0
     ExitButton.Text = "| Thoát AFK |"
-    ExitButton.TextColor3 = Color3.fromRGB(20, 20, 20)
+    ExitButton.TextColor3 = Color3.fromRGB(0, 0, 0)
     ExitButton.TextSize = 18
     ExitButton.Font = Enum.Font.SourceSansBold
-    ExitButton.Parent = WhiteFrame
+    ExitButton.ZIndex = 10002
+    ExitButton.Parent = Container
 
     local UICorner = Instance.new("UICorner")
     UICorner.CornerRadius = UDim.new(0, 8)
@@ -703,7 +726,7 @@ local function createAFKScreen(onCloseCallback)
         end
     end)
 
-    -- Vòng lặp cập nhật thời gian + thông số trên UI Trắng
+    -- Vòng lặp cập nhật thời gian
     AFKSeconds = 0
     AFKTimerThread = task.spawn(function()
         while _G.AntiAFK do
@@ -722,13 +745,12 @@ local function createAFKScreen(onCloseCallback)
         end
     end)
 
-    -- Bấm phím PC mỗi 1 phút (60 giây)
+    -- Bấm phím Space mỗi 1 phút (60s) chống AFK
     AFKKeyThread = task.spawn(function()
         while _G.AntiAFK do
             task.wait(60)
             if _G.AntiAFK then
                 pcall(function()
-                    -- Giả lập ấn nút Space (hoặc W) qua VirtualInputManager
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
                     task.wait(0.1)
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
@@ -753,7 +775,7 @@ local function removeAFKScreen()
     end
 end
 
--- Toggle Anti-AFK trong Menu
+-- Toggle Anti-AFK trong Menu (Kết nối với Nút bấm UI)
 local AFKToggle = MiscSection2:Toggle({
     Title = "Anti-AFK (Màn Hình Trắng)",
     Desc = "Bật màn hình trắng AFK & Bấm phím PC mỗi 1 phút",
@@ -762,7 +784,7 @@ local AFKToggle = MiscSection2:Toggle({
         _G.AntiAFK = Value
         if Value then
             createAFKScreen(function()
-                -- Callback khi nhấn "| Thoát AFK |" trên UI trắng -> Tắt Toggle ở Menu
+                -- Khi ấn Nút | Thoát AFK | trên màn hình trắng -> Tắt Toggle
                 _G.AntiAFK = false
                 AFKToggle:SetValue(false)
                 removeAFKScreen()
