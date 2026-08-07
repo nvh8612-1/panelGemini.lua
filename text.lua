@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Full Speed + Smooth Ping Fixed)
+-- PANEL GEMINI - GAG2 (Multi-Select + Type Filter: Normal/Maple)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -133,7 +133,7 @@ _G.AutoCollectSeed = false
 
 AutoSection1:Input({
     Title = "FruitHarvest Amount",
-    Desc = "Số lượng Thu hoạch",
+    Desc = "Số lượng quả thu hoạch / đợt (Mặc định: 1)",
     Value = "1",
     Placeholder = "Nhập số lượng...",
     Callback = function(Text)
@@ -300,7 +300,7 @@ AutoSection2:Input({
     Placeholder = "0.1 hoặc 0,1",
     Callback = function(Text)
         local sanitizedText = string.gsub(Text, ",", ".")
-        local num = tonumber(sanitizedText)
+        local num = tonumber(Text)
         _G.DelaySell = (num and num >= 0) and num or 0.1
     end
 })
@@ -328,10 +328,11 @@ AutoSection2:Toggle({
 })
 
 ---------------------------------------------------------
--- MỤC: SHOP (FAST & SMOOTH PING FIXED)
+-- MỤC: SHOP (LỌC HẠT GIỐNG: NORMAL & MAPLE)
 ---------------------------------------------------------
 local ShopSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống" })
 
+-- Danh sách gốc (Đã xóa Green Bean và Maple Green Bean)
 local AllSeeds = {
     "Carrot", "Strawberry", "Blueberry", "Tulip", "Tomato", 
     "Apple", "Bamboo", "Corn", "Cactus", "Pineapple", 
@@ -342,16 +343,16 @@ local AllSeeds = {
     "Dragon's Breath", "Star Fruit", "Conifer Cone", "Amber Cranberry", "Atlantic Giant Pumpkin", 
     "Maple Carrot", "Maple Strawberry", "Maple Blueberry", "Maple Tulip", "Maple Tomato", 
     "Maple Apple", "Maple Bamboo", "Maple Corn", "Maple Cactus", "Maple Pineapple", 
-    "Maple Mushroom",  "Maple Banana", "Maple Grape", "Maple Mango", 
+    "Maple Mushroom", "Maple Banana", "Maple Grape", "Maple Mango", 
     "Maple Dragon Fruit", "Maple Acorn", "Maple Cherry", "Maple Sunflower", "Maple Venus Fly Trap", 
     "Maple Pomegranate", "Maple Poison Apple", "Maple Venom Spitter"
 }
 
-_G.SelectedSeed = AllSeeds[1]
+_G.SelectedSeeds = {}
 _G.AutoBuySeed = false
 _G.AutoBuyAllSeeds = false
 
--- Lấy Remote Packet
+-- Remote Packet
 local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules")
     :WaitForChild("Packet")
     :WaitForChild("RemoteEvent")
@@ -363,7 +364,6 @@ for _, name in ipairs(AllSeeds) do
     SeedBuffers[name] = buffer.fromstring(payload)
 end
 
--- Hàm gửi gói tin
 local function buySeedFast(seedName)
     local buf = SeedBuffers[seedName]
     if buf then
@@ -371,39 +371,76 @@ local function buySeedFast(seedName)
     end
 end
 
--- Chọn 1 hạt giống
+-- Hàm phân loại hạt giống
+local function filterSeeds(filterType)
+    local filtered = {}
+    for _, name in ipairs(AllSeeds) do
+        local isMaple = string.find(name, "Maple") ~= nil
+        if filterType == "Normal" and not isMaple then
+            table.insert(filtered, name)
+        elseif filterType == "Maple" and isMaple then
+            table.insert(filtered, name)
+        elseif filterType == "All" then
+            table.insert(filtered, name)
+        end
+    end
+    return filtered
+end
+
+-- 1. DROPDOWN LỌC LOẠI HẠT GIỐNG (All, Normal, Maple)
+local SeedDropdown -- Khai báo trước để tương tác động
+
 ShopSection:Dropdown({
-    Title = "Select Hạt Giống",
-    Desc = "Chọn hạt giống",
-    Values = AllSeeds,
-    Value = AllSeeds[1],
+    Title = "Lọc Loại Hạt Giống",
+    Desc = "Lọc hạt Thường (Normal) hoặc Hạt Phong (Maple)",
+    Values = { "All", "Normal", "Maple" },
+    Value = "All",
     Callback = function(Value)
-        _G.SelectedSeed = Value
+        local newList = filterSeeds(Value)
+        if SeedDropdown then
+            SeedDropdown:SetValues(newList)
+        end
     end
 })
 
--- Tự động mua hạt đã chọn (Tối ưu Ping: 20 lần/giây)
+-- 2. DROPDOWN CHỌN NHIỀU HẠT GIỐNG
+SeedDropdown = ShopSection:Dropdown({
+    Title = "Chọn Hạt Giống (Multi-Select)",
+    Desc = "Tích chọn 1 hoặc nhiều hạt giống muốn mua",
+    Values = AllSeeds,
+    Multi = true,
+    Value = { AllSeeds[1] },
+    Callback = function(Values)
+        _G.SelectedSeeds = Values
+    end
+})
+
+-- Tự động mua hạt đã chọn
 ShopSection:Toggle({
-    Title = "Auto Buy Selected Seed",
-    Desc = "Mua Tất Cả",
+    Title = "Auto Buy Selected Seeds",
+    Desc = "Mua lặp tất cả các hạt đã chọn",
     Value = false,
     Callback = function(Value)
         _G.AutoBuySeed = Value
         task.spawn(function()
             while _G.AutoBuySeed do
-                if _G.SelectedSeed then
-                    buySeedFast(_G.SelectedSeed)
+                if _G.SelectedSeeds and #_G.SelectedSeeds > 0 then
+                    for _, seedName in ipairs(_G.SelectedSeeds) do
+                        if not _G.AutoBuySeed then break end
+                        buySeedFast(seedName)
+                        task.wait(0.02)
+                    end
                 end
-                task.wait(0.05) -- Delay 0.05s vừa đủ cực nhanh vừa không làm vọt Ping
+                task.wait(0.05)
             end
         end)
     end
 })
 
--- Tự động mua TOÀN BỘ hạt giống (Tối ưu Ping)
+-- Tự động mua TOÀN BỘ hạt giống
 ShopSection:Toggle({
-    Title = "Auto Buy All Seed",
-    Desc = "Duyệt mua toàn bộ hạt giống không lo lag giật",
+    Title = "Auto Buy All Seeds",
+    Desc = "Duyệt mua toàn bộ danh sách hạt giống trong shop",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyAllSeeds = Value
@@ -412,7 +449,7 @@ ShopSection:Toggle({
                 for _, seedName in ipairs(AllSeeds) do
                     if not _G.AutoBuyAllSeeds then break end
                     buySeedFast(seedName)
-                    task.wait(0.02) -- Nghỉ 0.02s giữa các hạt để Server kịp xử lý
+                    task.wait(0.02)
                 end
                 task.wait(0.1)
             end
