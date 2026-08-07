@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Full WindUI + Packet Buffer Shop + All Seeds)
+-- PANEL GEMINI - GAG2 (Full Speed Buffer Cache Shop + Ultra Fast)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -300,7 +300,7 @@ AutoSection2:Input({
     Placeholder = "0.1 hoặc 0,1",
     Callback = function(Text)
         local sanitizedText = string.gsub(Text, ",", ".")
-        local num = tonumber(sanitizedText)
+        local num = tonumber(Text)
         _G.DelaySell = (num and num >= 0) and num or 0.1
     end
 })
@@ -328,7 +328,7 @@ AutoSection2:Toggle({
 })
 
 ---------------------------------------------------------
--- MỤC: SHOP
+-- MỤC: SHOP (CỰC NHANH - CẤP ĐỘ BUFFER)
 ---------------------------------------------------------
 local ShopSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống" })
 
@@ -351,40 +351,27 @@ _G.SelectedSeed = AllSeeds[1]
 _G.AutoBuySeed = false
 _G.AutoBuyAllSeeds = false
 
--- HÀM MUA HẠT GIỐNG TỰ ĐỘNG ĐÓNG GÓI BUFFER / PACKET
-local function buySeed(seedName)
-    pcall(function()
-        -- 1. Gửi Packet dạng Buffer (Tính toán độ dài chuỗi tự động)
-        local sharedModules = ReplicatedStorage:FindFirstChild("SharedModules")
-        local packetFolder = sharedModules and sharedModules:FindFirstChild("Packet")
-        local packetRemote = packetFolder and packetFolder:FindFirstChild("RemoteEvent")
+-- Lấy sẵn Remote Packet từ đầu để không tốn thời gian search/wait trong vòng lặp
+local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules")
+    :WaitForChild("Packet")
+    :WaitForChild("RemoteEvent")
 
-        if packetRemote then
-            local header = "\159\000"
-            local nameLen = string.char(#seedName) -- Tự động chuyển độ dài chuỗi thành Byte ASCII
-            local payload = header .. nameLen .. seedName
-            
-            packetRemote:FireServer(buffer.fromstring(payload))
-        end
-
-        -- 2. Dự phòng: Gọi qua Networking Module nếu game không dùng Packet Byte
-        local Networking
-        pcall(function()
-            Networking = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Networking"))
-        end)
-        
-        if Networking and Networking.NPCS and Networking.NPCS.BuyItem then
-            Networking.NPCS.BuyItem:Fire(seedName)
-        else
-            local buyRemote = ReplicatedStorage:FindFirstChild("BuyItem", true) or ReplicatedStorage:FindFirstChild("PurchaseItem", true)
-            if buyRemote and buyRemote:IsA("RemoteEvent") then
-                buyRemote:FireServer(seedName)
-            end
-        end
-    end)
+-- Cache sẵn Buffer của tất cả các hạt giống vào RAM để gửi NAY LẬP TỨC
+local SeedBuffers = {}
+for _, name in ipairs(AllSeeds) do
+    local payload = "\159\000" .. string.char(#name) .. name
+    SeedBuffers[name] = buffer.fromstring(payload)
 end
 
--- Chọn 1 hạt giống cụ thể
+-- Hàm gửi gói tin cực nhanh
+local function buySeedFast(seedName)
+    local buf = SeedBuffers[seedName]
+    if buf then
+        PacketRemote:FireServer(buf)
+    end
+end
+
+-- Chọn 1 hạt giống
 ShopSection:Dropdown({
     Title = "Chọn Hạt Giống",
     Desc = "Chọn hạt bạn muốn tự động mua",
@@ -395,28 +382,28 @@ ShopSection:Dropdown({
     end
 })
 
--- Tự động mua hạt đã chọn
+-- Tự động mua hạt đã chọn (Bắn không delay)
 ShopSection:Toggle({
-    Title = "Auto Buy Selected Seed",
-    Desc = "Tự động mua liên tục hạt đã chọn ở trên",
+    Title = "Auto Buy Selected Seed (Fast)",
+    Desc = "Gửi gói tin mua liên tục không delay",
     Value = false,
     Callback = function(Value)
         _G.AutoBuySeed = Value
         task.spawn(function()
             while _G.AutoBuySeed do
                 if _G.SelectedSeed then
-                    buySeed(_G.SelectedSeed)
+                    buySeedFast(_G.SelectedSeed)
                 end
-                task.wait(0.001)
+                task.wait() -- Tần số Render/Heartbeat cực đỉnh
             end
         end)
     end
 })
 
--- Tự động mua TOÀN BỘ hạt giống
+-- Tự động mua TOÀN BỘ hạt giống (Xả toàn bộ buffer)
 ShopSection:Toggle({
-    Title = "Auto Buy All Seed",
-    Desc = "Tự động lặp và mua toàn bộ 58 loại hạt giống trong shop",
+    Title = "Auto Buy All Seed (Fast)",
+    Desc = "Xả toàn bộ 58 gói tin mua hạt lên Server cùng lúc",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyAllSeeds = Value
@@ -424,10 +411,9 @@ ShopSection:Toggle({
             while _G.AutoBuyAllSeeds do
                 for _, seedName in ipairs(AllSeeds) do
                     if not _G.AutoBuyAllSeeds then break end
-                    buySeed(seedName)
-                    task.wait(0.0001) -- Delay giữa các hạt
+                    buySeedFast(seedName)
                 end
-                task.wait(0.001) -- Delay giữa mỗi vòng duyệt
+                task.wait(0.01) -- Tránh nghẽn mạng Client
             end
         end)
     end
