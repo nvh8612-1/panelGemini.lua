@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Multi-Select + Type Filter: Normal/Maple)
+-- PANEL GEMINI - GAG2 (Full Seeds + Gear Tab + Packet Buffer Fast & Smooth)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -28,6 +28,7 @@ local Window = WindUI:CreateWindow({
 local MainTab = Window:Tab({ Title = "Main", Icon = "home" })
 local AutoTab = Window:Tab({ Title = "Auto", Icon = "repeat" })
 local ShopTab = Window:Tab({ Title = "Shop", Icon = "shopping-cart" })
+local GearTab = Window:Tab({ Title = "Gear", Icon = "wrench" })
 local MiscTab = Window:Tab({ Title = "Misc", Icon = "sliders" })
 
 -- =========================================================
@@ -328,11 +329,17 @@ AutoSection2:Toggle({
 })
 
 ---------------------------------------------------------
--- MỤC: SHOP (LỌC HẠT GIỐNG: NORMAL & MAPLE)
+-- CHUNG: KẾT NỐI REMOTE PACKET
+---------------------------------------------------------
+local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules")
+    :WaitForChild("Packet")
+    :WaitForChild("RemoteEvent")
+
+---------------------------------------------------------
+-- MỤC: SHOP (HẠT GIỐNG - HEADER \159\000)
 ---------------------------------------------------------
 local ShopSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống" })
 
--- Danh sách gốc (Đã xóa Green Bean và Maple Green Bean)
 local AllSeeds = {
     "Carrot", "Strawberry", "Blueberry", "Tulip", "Tomato", 
     "Apple", "Bamboo", "Corn", "Cactus", "Pineapple", 
@@ -352,12 +359,7 @@ _G.SelectedSeeds = {}
 _G.AutoBuySeed = false
 _G.AutoBuyAllSeeds = false
 
--- Remote Packet
-local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules")
-    :WaitForChild("Packet")
-    :WaitForChild("RemoteEvent")
-
--- Cache sẵn Buffer vào RAM
+-- Cache sẵn Buffer Hạt Giống (Header \159\000)
 local SeedBuffers = {}
 for _, name in ipairs(AllSeeds) do
     local payload = "\159\000" .. string.char(#name) .. name
@@ -371,7 +373,7 @@ local function buySeedFast(seedName)
     end
 end
 
--- Hàm phân loại hạt giống
+-- Lọc loại Hạt
 local function filterSeeds(filterType)
     local filtered = {}
     for _, name in ipairs(AllSeeds) do
@@ -387,8 +389,7 @@ local function filterSeeds(filterType)
     return filtered
 end
 
--- 1. DROPDOWN LỌC LOẠI HẠT GIỐNG (All, Normal, Maple)
-local SeedDropdown -- Khai báo trước để tương tác động
+local SeedDropdown
 
 ShopSection:Dropdown({
     Title = "Lọc Loại Hạt Giống",
@@ -403,7 +404,6 @@ ShopSection:Dropdown({
     end
 })
 
--- 2. DROPDOWN CHỌN NHIỀU HẠT GIỐNG
 SeedDropdown = ShopSection:Dropdown({
     Title = "Chọn Hạt Giống (Multi-Select)",
     Desc = "Tích chọn 1 hoặc nhiều hạt giống muốn mua",
@@ -415,7 +415,6 @@ SeedDropdown = ShopSection:Dropdown({
     end
 })
 
--- Tự động mua hạt đã chọn
 ShopSection:Toggle({
     Title = "Auto Buy Selected Seeds",
     Desc = "Mua lặp tất cả các hạt đã chọn",
@@ -437,7 +436,6 @@ ShopSection:Toggle({
     end
 })
 
--- Tự động mua TOÀN BỘ hạt giống
 ShopSection:Toggle({
     Title = "Auto Buy All Seeds",
     Desc = "Duyệt mua toàn bộ danh sách hạt giống trong shop",
@@ -449,6 +447,88 @@ ShopSection:Toggle({
                 for _, seedName in ipairs(AllSeeds) do
                     if not _G.AutoBuyAllSeeds then break end
                     buySeedFast(seedName)
+                    task.wait(0.02)
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+})
+
+---------------------------------------------------------
+-- MỤC: GEAR (DỤNG CỤ - HEADER \163\000)
+---------------------------------------------------------
+local GearSection = GearTab:Section({ Title = "Cửa Hàng Dụng Cụ (Gear Shop)" })
+
+local AllGears = {
+    "Syrup Watering Can",
+    "Syrup Sprinkler"
+}
+
+_G.SelectedGears = {}
+_G.AutoBuyGear = false
+_G.AutoBuyAllGears = false
+
+-- Cache sẵn Buffer Gear (Header \163\000)
+local GearBuffers = {}
+for _, name in ipairs(AllGears) do
+    local payload = "\163\000" .. string.char(#name) .. name
+    GearBuffers[name] = buffer.fromstring(payload)
+end
+
+local function buyGearFast(gearName)
+    local buf = GearBuffers[gearName]
+    if buf then
+        PacketRemote:FireServer(buf)
+    end
+end
+
+-- Dropdown Chọn Nhiều Gear
+GearSection:Dropdown({
+    Title = "Chọn Gear (Multi-Select)",
+    Desc = "Tích chọn 1 hoặc nhiều Dụng Cụ muốn mua",
+    Values = AllGears,
+    Multi = true,
+    Value = { AllGears[1] },
+    Callback = function(Values)
+        _G.SelectedGears = Values
+    end
+})
+
+-- Toggle Mua Gear Được Chọn
+GearSection:Toggle({
+    Title = "Auto Buy Selected Gear",
+    Desc = "Mua lặp tất cả các Gear đã tích chọn",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoBuyGear = Value
+        task.spawn(function()
+            while _G.AutoBuyGear do
+                if _G.SelectedGears and #_G.SelectedGears > 0 then
+                    for _, gearName in ipairs(_G.SelectedGears) do
+                        if not _G.AutoBuyGear then break end
+                        buyGearFast(gearName)
+                        task.wait(0.02)
+                    end
+                end
+                task.wait(0.05)
+            end
+        end)
+    end
+})
+
+-- Toggle Mua Toàn Bộ Gear
+GearSection:Toggle({
+    Title = "Auto Buy All Gear",
+    Desc = "Tự động mua toàn bộ danh sách Dụng Cụ (Gear)",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoBuyAllGears = Value
+        task.spawn(function()
+            while _G.AutoBuyAllGears do
+                for _, gearName in ipairs(AllGears) do
+                    if not _G.AutoBuyAllGears then break end
+                    buyGearFast(gearName)
                     task.wait(0.02)
                 end
                 task.wait(0.1)
