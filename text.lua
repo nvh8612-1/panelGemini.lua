@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (WindUI + Full Logic Auto Harvest & Seed)
+-- PANEL GEMINI - GAG2 (Full WindUI + Exact Attributes Detector)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -29,7 +29,7 @@ local AutoTab = Window:Tab({ Title = "Auto", Icon = "repeat" })
 local MiscTab = Window:Tab({ Title = "Misc", Icon = "sliders" })
 
 -- =========================================================
--- LOGIC DÒ & LƯU PLOT (TRUYẾN TỪ BẢN CŨ SANG)
+-- LOGIC DÒ PLOT CHUẨN ĐÉT QUA ATTRIBUTES (OWNER & OWNERUSERID)
 -- =========================================================
 _G.MyPlot = nil
 local SavedPlotName = "Không tìm thấy"
@@ -38,8 +38,19 @@ local function findMyPlot()
     local gardens = workspace:FindFirstChild("Gardens")
     if not gardens then return nil end
 
-    -- 1. Kiểm tra chính xác theo Owner / Name
     for _, plot in ipairs(gardens:GetChildren()) do
+        -- 1. Đọc Attributes chuẩn từ game (Owner / OwnerUserId)
+        local attrOwner = plot:GetAttribute("Owner")
+        local attrUserId = plot:GetAttribute("OwnerUserId")
+
+        if attrOwner and tostring(attrOwner) == LocalPlayer.Name then
+            return plot
+        end
+        if attrUserId and tonumber(attrUserId) == LocalPlayer.UserId then
+            return plot
+        end
+
+        -- 2. Dự phòng: Kiểm tra Value Object
         local ownerValue = plot:FindFirstChild("Owner") or plot:FindFirstChild("OwnerName") or plot:FindFirstChild("Player")
         if ownerValue then
             if (ownerValue:IsA("StringValue") and ownerValue.Value == LocalPlayer.Name) or
@@ -47,12 +58,9 @@ local function findMyPlot()
                 return plot
             end
         end
-        if plot.Name:find(LocalPlayer.Name) or plot.Name:find(tostring(LocalPlayer.UserId)) then
-            return plot
-        end
     end
 
-    -- 2. Dự phòng: Tìm Plot gần nhân vật nhất
+    -- 3. Dự phòng: Đo khoảng cách tới nhân vật
     local character = LocalPlayer.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
         local rootPos = character.HumanoidRootPart.Position
@@ -74,11 +82,10 @@ local function findMyPlot()
         end
     end
 
-    -- 3. Mặc định lấy plot1 nếu có trong Gardens
-    return gardens:FindFirstChild("plot1") or gardens:FindFirstChild("Plot1") or gardens:GetChildren()[1]
+    return gardens:FindFirstChild("Plot1") or gardens:FindFirstChild("plot1") or gardens:GetChildren()[1]
 end
 
--- Chạy dò 1 lần duy nhất khi bật Script
+-- Chạy dò 1 lần duy nhất khi load Script
 _G.MyPlot = findMyPlot()
 if _G.MyPlot then
     SavedPlotName = "workspace.Gardens." .. _G.MyPlot.Name
@@ -118,12 +125,10 @@ end)
 ---------------------------------------------------------
 local AutoSection1 = AutoTab:Section({ Title = "Thu Hoạch & Hạt Giống" })
 
--- Biến Trạng Thái
 _G.FruitBatchLimit = 1
 _G.AutoHarvest = false
 _G.AutoCollectSeed = false
 
--- Input Fruit Batch Limit
 AutoSection1:Input({
     Title = "FruitHarvest Amount",
     Desc = "Số lượng quả thu hoạch / đợt (Mặc định: 1)",
@@ -135,9 +140,7 @@ AutoSection1:Input({
     end
 })
 
--- =========================================================
--- LOGIC AUTO HARVEST (LẤY TỪ BẢN CŨ SANG)
--- =========================================================
+-- AUTO HARVEST LOGIC
 local function triggerHarvestPrompt(prompt)
     if not prompt then return end
     pcall(function()
@@ -192,7 +195,6 @@ task.spawn(function()
     end
 end)
 
--- Toggle Auto Harvest
 AutoSection1:Toggle({
     Title = "Auto Harvest",
     Value = false,
@@ -201,9 +203,7 @@ AutoSection1:Toggle({
     end
 })
 
--- =========================================================
--- LOGIC AUTO COLLECT SEED (LẤY TỪ BẢN CŨ SANG)
--- =========================================================
+-- AUTO COLLECT SEED LOGIC
 local function triggerPickupPrompt(prompt)
     if not prompt then return end
     pcall(function()
@@ -280,7 +280,6 @@ task.spawn(function()
     end
 end)
 
--- Toggle Auto Collect Seed
 AutoSection1:Toggle({
     Title = "Auto Collect Seed",
     Value = false,
