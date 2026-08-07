@@ -15,7 +15,7 @@ local LocalPlayer = Players.LocalPlayer
 -- Link WindUI
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- 1. TẠO WINDOW CHÍNH (Set DisplayOrder cao hơn để luôn nằm trên AFK GUI)
+-- 1. TẠO WINDOW CHÍNH (Set DisplayOrder lên lớp cao nhất để luôn đè lên AFK Gui)
 local Window = WindUI:CreateWindow({
     Title = "Panel Gemini",
     Author = "WhiteSs",
@@ -25,6 +25,13 @@ local Window = WindUI:CreateWindow({
     Transparent = true,
     Theme = "Dark"
 })
+
+-- Ép DisplayOrder của Window WindUI lên mức cao nhất
+pcall(function()
+    if Window and Window.Gui then
+        Window.Gui.DisplayOrder = 999999
+    end
+end)
 
 -- 2. KHỞI TẠO TABS
 local MainTab = Window:Tab({ Title = "Main", Icon = "home" })
@@ -634,7 +641,7 @@ MiscSection2:Button({
 })
 
 -- =========================================================
--- SYSTEM MÀN HÌNH TRẮNG AFK TỐI GIẢN (MENU CHÍNH NẰM ĐÈ LÊN TRÊN)
+-- SYSTEM MÀN HÌNH TRẮNG AFK (CĂN GIỮA MÀN HÌNH)
 -- =========================================================
 local AFKGui = nil
 local AFKTimerThread = nil
@@ -648,7 +655,7 @@ local function createAFKScreen()
     AFKGui.Name = "Gemini_AFK_Screen_Minimal"
     AFKGui.ResetOnSpawn = false
     AFKGui.IgnoreGuiInset = true
-    AFKGui.DisplayOrder = 1 -- Đặt DisplayOrder thấp hơn Menu chính để Menu luôn nằm trên
+    AFKGui.DisplayOrder = 1000 -- Thấp hơn DisplayOrder của Menu chính (999999)
 
     local parentTarget = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
     AFKGui.Parent = parentTarget
@@ -662,15 +669,15 @@ local function createAFKScreen()
     WhiteFrame.ZIndex = 1
     WhiteFrame.Parent = AFKGui
 
-    -- Dòng hiển thị duy nhất nằm chính giữa phía trên
+    -- Dòng hiển thị duy nhất nằm CHÍNH GIỮA màn hình
     local InfoLabel = Instance.new("TextLabel")
-    InfoLabel.Size = UDim2.new(1, -20, 0, 40)
-    InfoLabel.Position = UDim2.new(0.5, 0, 0, 15)
-    InfoLabel.AnchorPoint = Vector2.new(0.5, 0)
+    InfoLabel.Size = UDim2.new(0.9, 0, 0, 50)
+    InfoLabel.Position = UDim2.fromScale(0.5, 0.5)
+    InfoLabel.AnchorPoint = Vector2.new(0.5, 0.5)
     InfoLabel.BackgroundTransparency = 1
     InfoLabel.Text = "🍁 0 | FPS: 60 | AFK:0:00:00"
     InfoLabel.TextColor3 = Color3.fromRGB(20, 20, 20)
-    InfoLabel.TextSize = 20
+    InfoLabel.TextSize = 22
     InfoLabel.TextScaled = true
     InfoLabel.Font = Enum.Font.SourceSansBold
     InfoLabel.ZIndex = 2
