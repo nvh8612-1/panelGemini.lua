@@ -15,7 +15,7 @@ local LocalPlayer = Players.LocalPlayer
 -- Link WindUI
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- 1. TẠO WINDOW CHÍNH (Set DisplayOrder lên lớp cao nhất để luôn đè lên AFK Gui)
+-- 1. TẠO WINDOW CHÍNH
 local Window = WindUI:CreateWindow({
     Title = "Panel Gemini",
     Author = "WhiteSs",
@@ -26,11 +26,17 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
--- Ép DisplayOrder của Window WindUI lên mức cao nhất
-pcall(function()
-    if Window and Window.Gui then
-        Window.Gui.DisplayOrder = 999999
-    end
+-- Ép ScreenGui của WindUI lên DisplayOrder cao nhất để luôn nằm ĐÈ LÊN trên AFK
+task.spawn(function()
+    task.wait(0.5)
+    pcall(function()
+        local parentTarget = (gethui and gethui()) or CoreGui
+        for _, gui in ipairs(parentTarget:GetChildren()) do
+            if gui:IsA("ScreenGui") and gui.Name ~= "Gemini_AFK_Screen_Minimal" then
+                gui.DisplayOrder = 9999
+            end
+        end
+    end)
 end)
 
 -- 2. KHỞI TẠO TABS
@@ -641,7 +647,7 @@ MiscSection2:Button({
 })
 
 -- =========================================================
--- SYSTEM MÀN HÌNH TRẮNG AFK (CĂN GIỮA MÀN HÌNH)
+-- SYSTEM MÀN HÌNH TRẮNG AFK (FIX LỖI CHỮ BỊ TỰ VĨ/XOAY MÀN HÌNH)
 -- =========================================================
 local AFKGui = nil
 local AFKTimerThread = nil
@@ -655,35 +661,35 @@ local function createAFKScreen()
     AFKGui.Name = "Gemini_AFK_Screen_Minimal"
     AFKGui.ResetOnSpawn = false
     AFKGui.IgnoreGuiInset = true
-    AFKGui.DisplayOrder = 1000 -- Thấp hơn DisplayOrder của Menu chính (999999)
+    AFKGui.DisplayOrder = 1 -- Nhỏ hơn 9999 của Menu chính
 
     local parentTarget = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
     AFKGui.Parent = parentTarget
 
-    -- Background Trắng Phủ 100%
+    -- Background Trắng
     local WhiteFrame = Instance.new("Frame")
     WhiteFrame.Size = UDim2.fromScale(1, 1)
     WhiteFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     WhiteFrame.BorderSizePixel = 0
-    WhiteFrame.Active = true
+    WhiteFrame.Active = false -- Để bấm xuyên qua nếu cần
     WhiteFrame.ZIndex = 1
     WhiteFrame.Parent = AFKGui
 
-    -- Dòng hiển thị duy nhất nằm CHÍNH GIỮA màn hình
+    -- Dòng hiển thị nằm giữa màn hình (Set Kích thước chuẩn để KHÔNG BỊ TRÀN CHỮ)
     local InfoLabel = Instance.new("TextLabel")
-    InfoLabel.Size = UDim2.new(0.9, 0, 0, 50)
+    InfoLabel.Size = UDim2.new(1, -40, 0, 80)
     InfoLabel.Position = UDim2.fromScale(0.5, 0.5)
     InfoLabel.AnchorPoint = Vector2.new(0.5, 0.5)
     InfoLabel.BackgroundTransparency = 1
     InfoLabel.Text = "🍁 0 | FPS: 60 | AFK:0:00:00"
-    InfoLabel.TextColor3 = Color3.fromRGB(20, 20, 20)
-    InfoLabel.TextSize = 22
-    InfoLabel.TextScaled = true
+    InfoLabel.TextColor3 = Color3.fromRGB(15, 15, 15)
+    InfoLabel.TextSize = 24
+    InfoLabel.TextWrapped = true
     InfoLabel.Font = Enum.Font.SourceSansBold
     InfoLabel.ZIndex = 2
     InfoLabel.Parent = WhiteFrame
 
-    -- Vòng lặp cập nhật thông số
+    -- Vòng lặp cập nhật
     AFKSeconds = 0
     AFKTimerThread = task.spawn(function()
         while _G.AntiAFK do
@@ -695,15 +701,14 @@ local function createAFKScreen()
             local secs = AFKSeconds % 60
             local timeStr = string.format("%d:%02d:%02d", hrs, mins, secs)
 
-            -- Format chuẩn: 🍁 [Lá] | FPS: [FPS] | AFK:0:00:00
-            InfoLabel.Text = string.format("🍁 %s | FPS: %d | AFK:%s", formatNumber(leaves), fps, timeStr)
+            InfoLabel.Text = string.format("🍁 %s  |  FPS: %d  |  AFK:%s", formatNumber(leaves), fps, timeStr)
             
             task.wait(1)
             AFKSeconds = AFKSeconds + 1
         end
     end)
 
-    -- Chống AFK (Bấm Space mỗi 1 phút)
+    -- Chống AFK
     AFKKeyThread = task.spawn(function()
         while _G.AntiAFK do
             task.wait(60)
