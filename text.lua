@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Full Speed Buffer Cache Shop + Ultra Fast)
+-- PANEL GEMINI - GAG2 (Full Speed + Smooth Ping Fixed)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -300,7 +300,7 @@ AutoSection2:Input({
     Placeholder = "0.1 hoặc 0,1",
     Callback = function(Text)
         local sanitizedText = string.gsub(Text, ",", ".")
-        local num = tonumber(Text)
+        local num = tonumber(sanitizedText)
         _G.DelaySell = (num and num >= 0) and num or 0.1
     end
 })
@@ -328,21 +328,21 @@ AutoSection2:Toggle({
 })
 
 ---------------------------------------------------------
--- MỤC: SHOP (CỰC NHANH - CẤP ĐỘ BUFFER)
+-- MỤC: SHOP (FAST & SMOOTH PING FIXED)
 ---------------------------------------------------------
 local ShopSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống" })
 
 local AllSeeds = {
     "Carrot", "Strawberry", "Blueberry", "Tulip", "Tomato", 
     "Apple", "Bamboo", "Corn", "Cactus", "Pineapple", 
-    "Mushroom", "Banana", "Grape", "Coconut", 
+    "Mushroom", "Green Bean", "Banana", "Grape", "Coconut", 
     "Maple Coconut", "Mango", "Rocket Pop", "Dragon Fruit", "Acorn", 
     "Cherry", "Sunflower", "Fire Fern", "Venus Fly Trap", "Pomegranate", 
     "Poison Apple", "Venom Spitter", "Moon Bloom", "Sun Bloom", "Hypno Bloom", 
     "Dragon's Breath", "Star Fruit", "Conifer Cone", "Amber Cranberry", "Atlantic Giant Pumpkin", 
     "Maple Carrot", "Maple Strawberry", "Maple Blueberry", "Maple Tulip", "Maple Tomato", 
     "Maple Apple", "Maple Bamboo", "Maple Corn", "Maple Cactus", "Maple Pineapple", 
-    "Maple Mushroom", "Maple Banana", "Maple Grape", "Maple Mango", 
+    "Maple Mushroom", "Maple Green Bean", "Maple Banana", "Maple Grape", "Maple Mango", 
     "Maple Dragon Fruit", "Maple Acorn", "Maple Cherry", "Maple Sunflower", "Maple Venus Fly Trap", 
     "Maple Pomegranate", "Maple Poison Apple", "Maple Venom Spitter"
 }
@@ -351,19 +351,19 @@ _G.SelectedSeed = AllSeeds[1]
 _G.AutoBuySeed = false
 _G.AutoBuyAllSeeds = false
 
--- Lấy sẵn Remote Packet từ đầu để không tốn thời gian search/wait trong vòng lặp
+-- Lấy Remote Packet
 local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules")
     :WaitForChild("Packet")
     :WaitForChild("RemoteEvent")
 
--- Cache sẵn Buffer của tất cả các hạt giống vào RAM để gửi NAY LẬP TỨC
+-- Cache sẵn Buffer vào RAM
 local SeedBuffers = {}
 for _, name in ipairs(AllSeeds) do
     local payload = "\159\000" .. string.char(#name) .. name
     SeedBuffers[name] = buffer.fromstring(payload)
 end
 
--- Hàm gửi gói tin cực nhanh
+-- Hàm gửi gói tin
 local function buySeedFast(seedName)
     local buf = SeedBuffers[seedName]
     if buf then
@@ -382,10 +382,10 @@ ShopSection:Dropdown({
     end
 })
 
--- Tự động mua hạt đã chọn (Bắn không delay)
+-- Tự động mua hạt đã chọn (Tối ưu Ping: 20 lần/giây)
 ShopSection:Toggle({
-    Title = "Auto Buy Selected Seed (Fast)",
-    Desc = "Mua những hạt được chọn",
+    Title = "Auto Buy Selected Seed",
+    Desc = "Tự động mua liên tục hạt đã chọn (Siêu mượt, Ping ổn định)",
     Value = false,
     Callback = function(Value)
         _G.AutoBuySeed = Value
@@ -394,16 +394,16 @@ ShopSection:Toggle({
                 if _G.SelectedSeed then
                     buySeedFast(_G.SelectedSeed)
                 end
-                task.wait() -- Tần số Render/Heartbeat cực đỉnh
+                task.wait(0.05) -- Delay 0.05s vừa đủ cực nhanh vừa không làm vọt Ping
             end
         end)
     end
 })
 
--- Tự động mua TOÀN BỘ hạt giống (Xả toàn bộ buffer)
+-- Tự động mua TOÀN BỘ hạt giống (Tối ưu Ping)
 ShopSection:Toggle({
-    Title = "Auto Buy All Seed (Fast)",
-    Desc = "Mua toàn bộ",
+    Title = "Auto Buy All Seed",
+    Desc = "Duyệt mua toàn bộ hạt giống không lo lag giật",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyAllSeeds = Value
@@ -412,8 +412,9 @@ ShopSection:Toggle({
                 for _, seedName in ipairs(AllSeeds) do
                     if not _G.AutoBuyAllSeeds then break end
                     buySeedFast(seedName)
+                    task.wait(0.02) -- Nghỉ 0.02s giữa các hạt để Server kịp xử lý
                 end
-                task.wait(0.01) -- Tránh nghẽn mạng Client
+                task.wait(0.1)
             end
         end)
     end
