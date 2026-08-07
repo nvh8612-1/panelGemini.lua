@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Full WindUI + Exact Attributes Detector + Shop)
+-- PANEL GEMINI - GAG2 (Full WindUI + Packet Buffer Shop + All Seeds)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -351,9 +351,23 @@ _G.SelectedSeed = AllSeeds[1]
 _G.AutoBuySeed = false
 _G.AutoBuyAllSeeds = false
 
--- Hàm Mua Hạt Giống
+-- HÀM MUA HẠT GIỐNG TỰ ĐỘNG ĐÓNG GÓI BUFFER / PACKET
 local function buySeed(seedName)
     pcall(function()
+        -- 1. Gửi Packet dạng Buffer (Tính toán độ dài chuỗi tự động)
+        local sharedModules = ReplicatedStorage:FindFirstChild("SharedModules")
+        local packetFolder = sharedModules and sharedModules:FindFirstChild("Packet")
+        local packetRemote = packetFolder and packetFolder:FindFirstChild("RemoteEvent")
+
+        if packetRemote then
+            local header = "\159\000"
+            local nameLen = string.char(#seedName) -- Tự động chuyển độ dài chuỗi thành Byte ASCII
+            local payload = header .. nameLen .. seedName
+            
+            packetRemote:FireServer(buffer.fromstring(payload))
+        end
+
+        -- 2. Dự phòng: Gọi qua Networking Module nếu game không dùng Packet Byte
         local Networking
         pcall(function()
             Networking = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Networking"))
@@ -411,9 +425,9 @@ ShopSection:Toggle({
                 for _, seedName in ipairs(AllSeeds) do
                     if not _G.AutoBuyAllSeeds then break end
                     buySeed(seedName)
-                    task.wait(0.05) -- Delay ngắn giữa các hạt để tránh spam server
+                    task.wait(0.05) -- Delay giữa các hạt
                 end
-                task.wait(0.5) -- Delay sau khi duyệt xong 1 lượt toàn bộ danh sách
+                task.wait(0.5) -- Delay giữa mỗi vòng duyệt
             end
         end)
     end
