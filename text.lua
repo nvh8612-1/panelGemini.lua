@@ -335,14 +335,14 @@ local ShopSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống" })
 local AllSeeds = {
     "Carrot", "Strawberry", "Blueberry", "Tulip", "Tomato", 
     "Apple", "Bamboo", "Corn", "Cactus", "Pineapple", 
-    "Mushroom", "Green Bean", "Banana", "Grape", "Coconut", 
+    "Mushroom", "Banana", "Grape", "Coconut", 
     "Maple Coconut", "Mango", "Rocket Pop", "Dragon Fruit", "Acorn", 
     "Cherry", "Sunflower", "Fire Fern", "Venus Fly Trap", "Pomegranate", 
     "Poison Apple", "Venom Spitter", "Moon Bloom", "Sun Bloom", "Hypno Bloom", 
     "Dragon's Breath", "Star Fruit", "Conifer Cone", "Amber Cranberry", "Atlantic Giant Pumpkin", 
     "Maple Carrot", "Maple Strawberry", "Maple Blueberry", "Maple Tulip", "Maple Tomato", 
     "Maple Apple", "Maple Bamboo", "Maple Corn", "Maple Cactus", "Maple Pineapple", 
-    "Maple Mushroom", "Maple Green Bean", "Maple Banana", "Maple Grape", "Maple Mango", 
+    "Maple Mushroom", "Maple Banana", "Maple Grape", "Maple Mango", 
     "Maple Dragon Fruit", "Maple Acorn", "Maple Cherry", "Maple Sunflower", "Maple Venus Fly Trap", 
     "Maple Pomegranate", "Maple Poison Apple", "Maple Venom Spitter"
 }
