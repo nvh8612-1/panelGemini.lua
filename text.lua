@@ -407,7 +407,7 @@ ShopSection:Toggle({
                 if _G.SelectedSeed then
                     buySeed(_G.SelectedSeed)
                 end
-                task.wait(0.2)
+                task.wait(0.001)
             end
         end)
     end
@@ -425,9 +425,9 @@ ShopSection:Toggle({
                 for _, seedName in ipairs(AllSeeds) do
                     if not _G.AutoBuyAllSeeds then break end
                     buySeed(seedName)
-                    task.wait(0.05) -- Delay giữa các hạt
+                    task.wait(0.0001) -- Delay giữa các hạt
                 end
-                task.wait(0.5) -- Delay giữa mỗi vòng duyệt
+                task.wait(0.001) -- Delay giữa mỗi vòng duyệt
             end
         end)
     end
