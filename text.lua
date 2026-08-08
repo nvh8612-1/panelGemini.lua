@@ -206,7 +206,7 @@ local function tweenToFruit(targetCFrame)
     if not rootPart then return false end
 
     local distance = (rootPart.Position - targetCFrame.Position).Magnitude
-    local speed = 60 -- Tốc độ bay/di chuyển (chỉnh cao hơn nếu muốn nhanh hơn)
+    local speed = 60 -- Tốc độ di chuyển
     local tweenTime = distance / speed
     if tweenTime < 0.05 then tweenTime = 0.05 end
 
@@ -253,7 +253,7 @@ local function processHarvest()
                     local harvestPrompt = fruit:FindFirstChildWhichIsA("ProximityPrompt", true)
 
                     if harvestPrompt and harvestPart then
-                        -- Tween tới sát bên quả (kể cả quả ở tít trên cao)
+                        -- Tween tới sát bên quả
                         local targetCF = harvestPart.CFrame * CFrame.new(0, 1.5, 0)
                         tweenToFruit(targetCF)
 
@@ -762,7 +762,7 @@ local function removeAFKScreen()
         AFKGui:Destroy()
         AFKGui = nil
     end
-    if AFKTimerThread me
+    if AFKTimerThread then
         task.cancel(AFKTimerThread)
         AFKTimerThread = nil
     end
