@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Full Seeds + Full Gear + White Screen Anti-AFK Fixed)
+-- PANEL GEMINI - GAG2 (Full Seeds + Full Gear + Tween Harvest Fixed)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -150,7 +150,7 @@ task.spawn(function()
             "🏡 Vườn (Plot): %s\n\n" ..
             "Trạng thái: Đang hoạt động ổn định\n\n" ..
             "Phiên bản: Gemini GAG2 - Update Fall Harvest\n\n" ..
-            "Nâng cấp: Shop,Gear, Chức năng thu hoạch,Bán,Ẩn vường,FPS, Chức năng AFK mới ,...",
+            "Nâng cấp: Shop,Gear, Tween Harvest Trên Cao,Bán,Ẩn vườn,FPS, AFK Mới,...",
             LocalPlayer.Name,
             formatNumber(leaves),
             fps,
@@ -164,7 +164,7 @@ task.spawn(function()
 end)
 
 ---------------------------------------------------------
--- MỤC: AUTO
+-- MỤC: AUTO (CẬP NHẬT TWEEN THU HOẠCH TRÊN CAO)
 ---------------------------------------------------------
 local AutoSection1 = AutoTab:Section({ Title = "Thu Hoạch & Hạt Giống" })
 
@@ -198,6 +198,39 @@ local function triggerHarvestPrompt(prompt)
     end)
 end
 
+-- Hàm Tween nhân vật tới vị trí quả
+local function tweenToFruit(targetCFrame)
+    local character = LocalPlayer.Character
+    if not character then return false end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+
+    local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+    local speed = 60 -- Tốc độ bay/di chuyển (chỉnh cao hơn nếu muốn nhanh hơn)
+    local tweenTime = distance / speed
+    if tweenTime < 0.05 then tweenTime = 0.05 end
+
+    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+
+    tween:Play()
+
+    local completed = false
+    local conn = tween.Completed:Connect(function() completed = true end)
+
+    while not completed do
+        if not _G.AutoHarvest then
+            tween:Cancel()
+            break
+        end
+        task.wait(0.02)
+    end
+    if conn then conn:Disconnect() end
+
+    return completed
+end
+
+-- Hàm xử lý thu hoạch bằng Tween
 local function processHarvest()
     pcall(function()
         if not _G.MyPlot then _G.MyPlot = findMyPlot() end
@@ -216,10 +249,15 @@ local function processHarvest()
                 for _, fruit in ipairs(fruits:GetChildren()) do
                     if not _G.AutoHarvest then break end
 
-                    local harvestPart = fruit:FindFirstChild("HarvestPart")
-                    local harvestPrompt = harvestPart and harvestPart:FindFirstChild("HarvestPrompt")
+                    local harvestPart = fruit:FindFirstChild("HarvestPart") or fruit:FindFirstChildWhichIsA("BasePart")
+                    local harvestPrompt = fruit:FindFirstChildWhichIsA("ProximityPrompt", true)
 
-                    if harvestPrompt then
+                    if harvestPrompt and harvestPart then
+                        -- Tween tới sát bên quả (kể cả quả ở tít trên cao)
+                        local targetCF = harvestPart.CFrame * CFrame.new(0, 1.5, 0)
+                        tweenToFruit(targetCF)
+
+                        -- Thực hiện hái
                         triggerHarvestPrompt(harvestPrompt)
                         count = count + 1
                         if count >= _G.FruitBatchLimit then break end
@@ -390,7 +428,7 @@ local AllSeeds = {
     "Maple Apple", "Maple Bamboo", "Maple Corn", "Maple Cactus", "Maple Pineapple", 
     "Maple Mushroom", "Maple Banana", "Maple Grape", "Maple Mango", 
     "Maple Dragon Fruit", "Maple Acorn", "Maple Cherry", "Maple Sunflower", "Maple Venus Fly Trap", 
-    "Maple Pomegranate", "Maple Poison Apple", "Maple Venom Spitter"
+    "Maple Pomegranate", "Maple Poison Apple", "Maple Venom Spitter", "Maple Atlantic Giant Pumpkin"
 }
 
 _G.SelectedSeeds = {}
@@ -647,7 +685,7 @@ MiscSection2:Button({
 })
 
 -- =========================================================
--- SYSTEM MÀN HÌNH TRẮNG AFK (FIX LỖI CHỮ BỊ TỰ VĨ/XOAY MÀN HÌNH)
+-- SYSTEM MÀN HÌNH TRẮNG AFK
 -- =========================================================
 local AFKGui = nil
 local AFKTimerThread = nil
@@ -661,21 +699,19 @@ local function createAFKScreen()
     AFKGui.Name = "Gemini_AFK_Screen_Minimal"
     AFKGui.ResetOnSpawn = false
     AFKGui.IgnoreGuiInset = true
-    AFKGui.DisplayOrder = 1 -- Nhỏ hơn 9999 của Menu chính
+    AFKGui.DisplayOrder = 1
 
     local parentTarget = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
     AFKGui.Parent = parentTarget
 
-    -- Background Trắng
     local WhiteFrame = Instance.new("Frame")
     WhiteFrame.Size = UDim2.fromScale(1, 1)
     WhiteFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     WhiteFrame.BorderSizePixel = 0
-    WhiteFrame.Active = false -- Để bấm xuyên qua nếu cần
+    WhiteFrame.Active = false
     WhiteFrame.ZIndex = 1
     WhiteFrame.Parent = AFKGui
 
-    -- Dòng hiển thị nằm giữa màn hình (Set Kích thước chuẩn để KHÔNG BỊ TRÀN CHỮ)
     local InfoLabel = Instance.new("TextLabel")
     InfoLabel.Size = UDim2.new(1, -40, 0, 80)
     InfoLabel.Position = UDim2.fromScale(0.5, 0.5)
@@ -689,7 +725,6 @@ local function createAFKScreen()
     InfoLabel.ZIndex = 2
     InfoLabel.Parent = WhiteFrame
 
-    -- Vòng lặp cập nhật
     AFKSeconds = 0
     AFKTimerThread = task.spawn(function()
         while _G.AntiAFK do
@@ -708,7 +743,6 @@ local function createAFKScreen()
         end
     end)
 
-    -- Chống AFK
     AFKKeyThread = task.spawn(function()
         while _G.AntiAFK do
             task.wait(60)
@@ -728,7 +762,7 @@ local function removeAFKScreen()
         AFKGui:Destroy()
         AFKGui = nil
     end
-    if AFKTimerThread then
+    if AFKTimerThread me
         task.cancel(AFKTimerThread)
         AFKTimerThread = nil
     end
@@ -738,7 +772,6 @@ local function removeAFKScreen()
     end
 end
 
--- Toggle Anti-AFK
 local AFKToggle = MiscSection2:Toggle({
     Title = "Anti-AFK (Màn Hình Trắng)",
     Desc = "Bật màn hình trắng AFK & Bấm phím PC mỗi 1 phút",
