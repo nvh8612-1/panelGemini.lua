@@ -1,10 +1,9 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Full Seeds + Full Gear + Tween Harvest Fixed)
+-- PANEL GEMINI - GAG2 (Instant Fire No Wait + Heartbeat Loop)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local StatsService = game:GetService("Stats")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,7 +25,7 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
--- Ép ScreenGui của WindUI lên DisplayOrder cao nhất để luôn nằm ĐÈ LÊN trên AFK
+-- Ép ScreenGui của WindUI lên DisplayOrder cao nhất
 task.spawn(function()
     task.wait(0.5)
     pcall(function()
@@ -47,7 +46,7 @@ local GearTab = Window:Tab({ Title = "Gear", Icon = "wrench" })
 local MiscTab = Window:Tab({ Title = "Misc", Icon = "sliders" })
 
 -- =========================================================
--- LOGIC DÒ PLOT CHUẨN ĐÉT QUA ATTRIBUTES (OWNER & OWNERUSERID)
+-- LOGIC DÒ PLOT CHUẨN ĐÉT QUA ATTRIBUTES
 -- =========================================================
 _G.MyPlot = nil
 local SavedPlotName = "workspace.Gardens.Plot1"
@@ -105,7 +104,6 @@ if _G.MyPlot then
     SavedPlotName = "workspace.Gardens." .. _G.MyPlot.Name
 end
 
--- Hàm lấy giá trị Leaves và định dạng số
 local function getLeavesValue()
     local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
     if leaderstats then
@@ -149,8 +147,8 @@ task.spawn(function()
             "⚡ FPS: %d | Ping: %dms | Frame: %dms\n\n" ..
             "🏡 Vườn (Plot): %s\n\n" ..
             "Trạng thái: Đang hoạt động ổn định\n\n" ..
-            "Phiên bản: Gemini GAG2 - Update Fall Harvest\n\n" ..
-            "Nâng cấp: Shop,Gear, Tween Harvest Trên Cao,Bán,Ẩn vườn,FPS, AFK Mới,...",
+            "Phiên bản: Gemini GAG2 - Ultra Max Speed (No Wait)\n\n" ..
+            "Nâng cấp: Heartbeat Loop, Target LookAt, Full Shop & Gear,...",
             LocalPlayer.Name,
             formatNumber(leaves),
             fps,
@@ -164,13 +162,14 @@ task.spawn(function()
 end)
 
 ---------------------------------------------------------
--- MỤC: AUTO (CẬP NHẬT TWEEN THU HOẠCH TRÊN CAO)
+-- MỤC: AUTO (SIÊU TỐC KHÔNG WAIT + HEARTBEAT FRAME)
 ---------------------------------------------------------
 local AutoSection1 = AutoTab:Section({ Title = "Thu Hoạch & Hạt Giống" })
 
 _G.FruitBatchLimit = 1
 _G.AutoHarvest = false
 _G.AutoCollectSeed = false
+_G.LookAtTarget = true
 
 AutoSection1:Input({
     Title = "FruitHarvest Amount",
@@ -183,13 +182,35 @@ AutoSection1:Input({
     end
 })
 
-local function triggerHarvestPrompt(prompt)
+AutoSection1:Toggle({
+    Title = "Look At Plant When Harvest",
+    Desc = "Tự động xoay Màn hình / Camera về phía quả đang được fire",
+    Value = true,
+    Callback = function(Value)
+        _G.LookAtTarget = Value
+    end
+})
+
+-- Hàm xoay Camera hướng về mục tiêu
+local function lookAtPosition(targetPos)
+    local camera = workspace.CurrentCamera
+    if camera then
+        camera.CFrame = CFrame.new(camera.CFrame.Position, targetPos)
+    end
+end
+
+-- Kích hoạt Prompt không delay, mở rộng tầm xa
+local function triggerHarvestPrompt(prompt, targetPart)
     if not prompt then return end
     pcall(function()
         prompt.HoldDuration = 0
-        prompt.MaxActivationDistance = 9999
+        prompt.MaxActivationDistance = 99999
         prompt.RequiresLineOfSight = false
         
+        if _G.LookAtTarget and targetPart then
+            lookAtPosition(targetPart.Position)
+        end
+
         if fireHarvestPrompt then
             fireHarvestPrompt(prompt)
         elseif fireproximityprompt then
@@ -198,40 +219,10 @@ local function triggerHarvestPrompt(prompt)
     end)
 end
 
--- Hàm Tween nhân vật tới vị trí quả
-local function tweenToFruit(targetCFrame)
-    local character = LocalPlayer.Character
-    if not character then return false end
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return false end
+-- Hàm thu hoạch siêu tốc chạy theo Heartbeat (XÓA BỎ HOÀN TOÀN TASK.WAIT)
+local function processHarvestUltraFast()
+    if not _G.AutoHarvest then return end
 
-    local distance = (rootPart.Position - targetCFrame.Position).Magnitude
-    local speed = 60 -- Tốc độ di chuyển
-    local tweenTime = distance / speed
-    if tweenTime < 0.05 then tweenTime = 0.05 end
-
-    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
-
-    tween:Play()
-
-    local completed = false
-    local conn = tween.Completed:Connect(function() completed = true end)
-
-    while not completed do
-        if not _G.AutoHarvest then
-            tween:Cancel()
-            break
-        end
-        task.wait(0.02)
-    end
-    if conn then conn:Disconnect() end
-
-    return completed
-end
-
--- Hàm xử lý thu hoạch bằng Tween
-local function processHarvest()
     pcall(function()
         if not _G.MyPlot then _G.MyPlot = findMyPlot() end
         local targetPlot = _G.MyPlot or (workspace:FindFirstChild("Gardens") and workspace.Gardens:FindFirstChildOfClass("Model"))
@@ -249,16 +240,11 @@ local function processHarvest()
                 for _, fruit in ipairs(fruits:GetChildren()) do
                     if not _G.AutoHarvest then break end
 
-                    local harvestPart = fruit:FindFirstChild("HarvestPart") or fruit:FindFirstChildWhichIsA("BasePart")
                     local harvestPrompt = fruit:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    local harvestPart = fruit:FindFirstChild("HarvestPart") or fruit:FindFirstChildWhichIsA("BasePart") or fruit
 
-                    if harvestPrompt and harvestPart then
-                        -- Tween tới sát bên quả
-                        local targetCF = harvestPart.CFrame * CFrame.new(0, 1.5, 0)
-                        tweenToFruit(targetCF)
-
-                        -- Thực hiện hái
-                        triggerHarvestPrompt(harvestPrompt)
+                    if harvestPrompt then
+                        triggerHarvestPrompt(harvestPrompt, harvestPart)
                         count = count + 1
                         if count >= _G.FruitBatchLimit then break end
                     end
@@ -269,9 +255,10 @@ local function processHarvest()
     end)
 end
 
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.AutoHarvest then processHarvest() end
+-- Sử dụng Heartbeat của RunService để lặp theo khung hình game (nhanh nhất có thể)
+RunService.Heartbeat:Connect(function()
+    if _G.AutoHarvest then
+        processHarvestUltraFast()
     end
 end)
 
@@ -283,13 +270,18 @@ AutoSection1:Toggle({
     end
 })
 
-local function triggerPickupPrompt(prompt)
+-- Thu gom hạt siêu tốc không wait
+local function triggerPickupPrompt(prompt, targetPart)
     if not prompt then return end
     pcall(function()
         prompt.HoldDuration = 0
-        prompt.MaxActivationDistance = 9999
+        prompt.MaxActivationDistance = 99999
         prompt.RequiresLineOfSight = false
         
+        if _G.LookAtTarget and targetPart then
+            lookAtPosition(targetPart.Position)
+        end
+
         if firePickupPrompt then
             firePickupPrompt(prompt)
         elseif fireproximityprompt then
@@ -298,64 +290,23 @@ local function triggerPickupPrompt(prompt)
     end)
 end
 
-local function tweenToAndPick(targetPos, prompt)
-    local character = LocalPlayer.Character
-    if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+RunService.Heartbeat:Connect(function()
+    if _G.AutoCollectSeed then
+        pcall(function()
+            local droppedFolder = workspace:FindFirstChild("DroppedItems")
+            if droppedFolder then
+                for _, item in ipairs(droppedFolder:GetChildren()) do
+                    if not _G.AutoCollectSeed then break end
 
-    local distance = (rootPart.Position - targetPos).Magnitude
-    local tweenTime = distance / 50
-    if tweenTime < 0.1 then tweenTime = 0.1 end
+                    local promptAnchor = item:FindFirstChild("PromptAnchor") or item:FindFirstChildWhichIsA("BasePart")
+                    local pickupPrompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
 
-    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 0))})
-
-    tween:Play()
-    
-    local completed = false
-    local conn = tween.Completed:Connect(function() completed = true end)
-
-    while not completed do
-        if not _G.AutoCollectSeed then
-            tween:Cancel()
-            break
-        end
-        task.wait(0.05)
-    end
-    if conn then conn:Disconnect() end
-
-    if prompt and _G.AutoCollectSeed then
-        triggerPickupPrompt(prompt)
-    end
-end
-
-task.spawn(function()
-    while task.wait(0.3) do
-        if _G.AutoCollectSeed then
-            pcall(function()
-                local character = LocalPlayer.Character
-                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-                local droppedFolder = workspace:FindFirstChild("DroppedItems")
-
-                if rootPart and droppedFolder then
-                    for _, item in ipairs(droppedFolder:GetChildren()) do
-                        if not _G.AutoCollectSeed then break end
-
-                        local promptAnchor = item:FindFirstChild("PromptAnchor")
-                        local pickupPrompt = promptAnchor and promptAnchor:FindFirstChild("PickupPrompt")
-
-                        if promptAnchor and pickupPrompt then
-                            local distance = (rootPart.Position - promptAnchor.Position).Magnitude
-                            if distance <= 100 then
-                                tweenToAndPick(promptAnchor.Position, pickupPrompt)
-                                task.wait(0.1)
-                            end
-                        end
+                    if pickupPrompt then
+                        triggerPickupPrompt(pickupPrompt, promptAnchor)
                     end
                 end
-            end)
-        end
+            end
+        end)
     end
 end)
 
@@ -367,6 +318,9 @@ AutoSection1:Toggle({
     end
 })
 
+---------------------------------------------------------
+-- MỤC: TỰ ĐỘNG BÁN
+---------------------------------------------------------
 local AutoSection2 = AutoTab:Section({ Title = "Tự Động Bán Đồ" })
 
 _G.DelaySell = 0.1
