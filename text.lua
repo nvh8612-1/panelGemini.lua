@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Speed Tab & Merged Gear Shop)
+-- PANEL GEMINI - GAG2 (Fixed WindUI Component Syntax)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -25,7 +25,7 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
--- Ép ScreenGui của WindUI lên DisplayOrder cao nhất
+-- Ép ScreenGui lên DisplayOrder cao nhất
 task.spawn(function()
     task.wait(0.5)
     pcall(function()
@@ -38,7 +38,7 @@ task.spawn(function()
     end)
 end)
 
--- 2. KHỞI TẠO TABS (Speed nằm riêng bên ngoài, Gear đã gộp vào Shop)
+-- 2. KHỞI TẠO TABS
 local MainTab  = Window:Tab({ Title = "Main",  Icon = "home" })
 local AutoTab  = Window:Tab({ Title = "Auto",  Icon = "repeat" })
 local ShopTab  = Window:Tab({ Title = "Shop",  Icon = "shopping-cart" })
@@ -46,7 +46,7 @@ local SpeedTab = Window:Tab({ Title = "Speed", Icon = "zap" })
 local MiscTab  = Window:Tab({ Title = "Misc",  Icon = "sliders" })
 
 -- =========================================================
--- LOGIC DÒ PLOT CHUẨN ĐÉT QUA ATTRIBUTES
+-- LOGIC DÒ PLOT
 -- =========================================================
 _G.MyPlot = nil
 local SavedPlotName = "workspace.Gardens.Plot1"
@@ -59,12 +59,8 @@ local function findMyPlot()
         local attrOwner = plot:GetAttribute("Owner")
         local attrUserId = plot:GetAttribute("OwnerUserId")
 
-        if attrOwner and tostring(attrOwner) == LocalPlayer.Name then
-            return plot
-        end
-        if attrUserId and tonumber(attrUserId) == LocalPlayer.UserId then
-            return plot
-        end
+        if attrOwner and tostring(attrOwner) == LocalPlayer.Name then return plot end
+        if attrUserId and tonumber(attrUserId) == LocalPlayer.UserId then return plot end
 
         local ownerValue = plot:FindFirstChild("Owner") or plot:FindFirstChild("OwnerName") or plot:FindFirstChild("Player")
         if ownerValue then
@@ -91,26 +87,20 @@ local function findMyPlot()
                 end
             end
         end
-        if closestPlot and shortestDistance < 100 then
-            return closestPlot
-        end
+        if closestPlot and shortestDistance < 100 then return closestPlot end
     end
 
     return gardens:FindFirstChild("Plot1") or gardens:FindFirstChild("plot1") or gardens:GetChildren()[1]
 end
 
 _G.MyPlot = findMyPlot()
-if _G.MyPlot then
-    SavedPlotName = "workspace.Gardens." .. _G.MyPlot.Name
-end
+if _G.MyPlot then SavedPlotName = "workspace.Gardens." .. _G.MyPlot.Name end
 
 local function getLeavesValue()
     local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
     if leaderstats then
         local leaves = leaderstats:FindFirstChild("Leaves")
-        if leaves then
-            return leaves.Value
-        end
+        if leaves then return leaves.Value end
     end
     return 0
 end
@@ -120,7 +110,7 @@ local function formatNumber(n)
 end
 
 ---------------------------------------------------------
--- MỤC: MAIN
+-- TAB: MAIN
 ---------------------------------------------------------
 local MainSection = MainTab:Section({ Title = "Thông Tin Hub" })
 
@@ -142,27 +132,15 @@ task.spawn(function()
         local leaves = getLeavesValue()
 
         local formattedText = string.format(
-            "👤 Người chơi: %s\n\n" ..
-            "🍁 Leaves : %s\n\n" ..
-            "⚡ FPS: %d | Ping: %dms | Frame: %dms\n\n" ..
-            "🏡 Vườn (Plot): %s\n\n" ..
-            "Trạng thái: Đang hoạt động ổn định\n\n" ..
-            "Phiên bản: Gemini GAG2\n\n" ..
-            "Cập nhật: Đã sửa lại Tab Speed, Shop & Misc",
-            LocalPlayer.Name,
-            formatNumber(leaves),
-            fps,
-            ping,
-            ms,
-            SavedPlotName
+            "👤 Người chơi: %s\n\n🍁 Leaves : %s\n\n⚡ FPS: %d | Ping: %dms | Frame: %dms\n\n🏡 Vườn (Plot): %s",
+            LocalPlayer.Name, formatNumber(leaves), fps, ping, ms, SavedPlotName
         )
-
         StatusParagraph:SetDesc(formattedText)
     end
 end)
 
 ---------------------------------------------------------
--- MỤC: AUTO
+-- TAB: AUTO
 ---------------------------------------------------------
 local AutoSection1 = AutoTab:Section({ Title = "Thu Hoạch & Hạt Giống" })
 
@@ -173,7 +151,7 @@ _G.LookAtTarget = true
 
 AutoSection1:Input({
     Title = "FruitHarvest Amount",
-    Desc = "Số lượng quả thu hoạch / đợt (Mặc định: 1)",
+    Desc = "Số lượng quả thu hoạch / đợt",
     Value = "1",
     Placeholder = "Nhập số lượng...",
     Callback = function(Text)
@@ -184,7 +162,7 @@ AutoSection1:Input({
 
 AutoSection1:Toggle({
     Title = "Look At Plant When Harvest",
-    Desc = "Tự động xoay Màn hình / Camera về phía quả đang được fire",
+    Desc = "Xoay camera về phía quả thu hoạch",
     Value = true,
     Callback = function(Value)
         _G.LookAtTarget = Value
@@ -193,9 +171,7 @@ AutoSection1:Toggle({
 
 local function lookAtPosition(targetPos)
     local camera = workspace.CurrentCamera
-    if camera then
-        camera.CFrame = CFrame.new(camera.CFrame.Position, targetPos)
-    end
+    if camera then camera.CFrame = CFrame.new(camera.CFrame.Position, targetPos) end
 end
 
 local function triggerHarvestPrompt(prompt, targetPart)
@@ -204,66 +180,47 @@ local function triggerHarvestPrompt(prompt, targetPart)
         prompt.HoldDuration = 0
         prompt.MaxActivationDistance = 99999
         prompt.RequiresLineOfSight = false
-        
-        if _G.LookAtTarget and targetPart then
-            lookAtPosition(targetPart.Position)
-        end
-
-        if fireHarvestPrompt then
-            fireHarvestPrompt(prompt)
-        elseif fireproximityprompt then
-            fireproximityprompt(prompt)
-        end
-    end)
-end
-
-local function processHarvestUltraFast()
-    if not _G.AutoHarvest then return end
-
-    pcall(function()
-        if not _G.MyPlot then _G.MyPlot = findMyPlot() end
-        local targetPlot = _G.MyPlot or (workspace:FindFirstChild("Gardens") and workspace.Gardens:FindFirstChildOfClass("Model"))
-        if not targetPlot then return end
-
-        local plants = targetPlot:FindFirstChild("Plants")
-        if not plants then return end
-
-        local count = 0
-        for _, plant in ipairs(plants:GetChildren()) do
-            if not _G.AutoHarvest then break end
-            
-            local fruits = plant:FindFirstChild("Fruits")
-            if fruits then
-                for _, fruit in ipairs(fruits:GetChildren()) do
-                    if not _G.AutoHarvest then break end
-
-                    local harvestPrompt = fruit:FindFirstChildWhichIsA("ProximityPrompt", true)
-                    local harvestPart = fruit:FindFirstChild("HarvestPart") or fruit:FindFirstChildWhichIsA("BasePart") or fruit
-
-                    if harvestPrompt then
-                        triggerHarvestPrompt(harvestPrompt, harvestPart)
-                        count = count + 1
-                        if count >= _G.FruitBatchLimit then break end
-                    end
-                end
-            end
-            if count >= _G.FruitBatchLimit then break end
-        end
+        if _G.LookAtTarget and targetPart then lookAtPosition(targetPart.Position) end
+        if fireHarvestPrompt then fireHarvestPrompt(prompt)
+        elseif fireproximityprompt then fireproximityprompt(prompt) end
     end)
 end
 
 RunService.Heartbeat:Connect(function()
     if _G.AutoHarvest then
-        processHarvestUltraFast()
+        pcall(function()
+            if not _G.MyPlot then _G.MyPlot = findMyPlot() end
+            local targetPlot = _G.MyPlot or (workspace:FindFirstChild("Gardens") and workspace.Gardens:FindFirstChildOfClass("Model"))
+            if not targetPlot then return end
+            local plants = targetPlot:FindFirstChild("Plants")
+            if not plants then return end
+
+            local count = 0
+            for _, plant in ipairs(plants:GetChildren()) do
+                if not _G.AutoHarvest then break end
+                local fruits = plant:FindFirstChild("Fruits")
+                if fruits then
+                    for _, fruit in ipairs(fruits:GetChildren()) do
+                        if not _G.AutoHarvest then break end
+                        local harvestPrompt = fruit:FindFirstChildWhichIsA("ProximityPrompt", true)
+                        local harvestPart = fruit:FindFirstChild("HarvestPart") or fruit:FindFirstChildWhichIsA("BasePart") or fruit
+                        if harvestPrompt then
+                            triggerHarvestPrompt(harvestPrompt, harvestPart)
+                            count = count + 1
+                            if count >= _G.FruitBatchLimit then break end
+                        end
+                    end
+                end
+                if count >= _G.FruitBatchLimit then break end
+            end
+        end)
     end
 end)
 
 AutoSection1:Toggle({
     Title = "Auto Harvest",
     Value = false,
-    Callback = function(Value)
-        _G.AutoHarvest = Value
-    end
+    Callback = function(Value) _G.AutoHarvest = Value end
 })
 
 local function triggerPickupPrompt(prompt, targetPart)
@@ -272,16 +229,9 @@ local function triggerPickupPrompt(prompt, targetPart)
         prompt.HoldDuration = 0
         prompt.MaxActivationDistance = 99999
         prompt.RequiresLineOfSight = false
-        
-        if _G.LookAtTarget and targetPart then
-            lookAtPosition(targetPart.Position)
-        end
-
-        if firePickupPrompt then
-            firePickupPrompt(prompt)
-        elseif fireproximityprompt then
-            fireproximityprompt(prompt)
-        end
+        if _G.LookAtTarget and targetPart then lookAtPosition(targetPart.Position) end
+        if firePickupPrompt then firePickupPrompt(prompt)
+        elseif fireproximityprompt then fireproximityprompt(prompt) end
     end)
 end
 
@@ -292,13 +242,9 @@ RunService.Heartbeat:Connect(function()
             if droppedFolder then
                 for _, item in ipairs(droppedFolder:GetChildren()) do
                     if not _G.AutoCollectSeed then break end
-
                     local promptAnchor = item:FindFirstChild("PromptAnchor") or item:FindFirstChildWhichIsA("BasePart")
                     local pickupPrompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
-
-                    if pickupPrompt then
-                        triggerPickupPrompt(pickupPrompt, promptAnchor)
-                    end
+                    if pickupPrompt then triggerPickupPrompt(pickupPrompt, promptAnchor) end
                 end
             end
         end)
@@ -308,22 +254,17 @@ end)
 AutoSection1:Toggle({
     Title = "Auto Collect Seed",
     Value = false,
-    Callback = function(Value)
-        _G.AutoCollectSeed = Value
-    end
+    Callback = function(Value) _G.AutoCollectSeed = Value end
 })
 
----------------------------------------------------------
--- MỤC: TỰ ĐỘNG BÁN
----------------------------------------------------------
 local AutoSection2 = AutoTab:Section({ Title = "Tự Động Bán Đồ" })
 
 _G.DelaySell = 0.1
 AutoSection2:Input({
     Title = "DelaySell",
-    Desc = "Thời gian delay bán (Mặc định: 0.1)",
+    Desc = "Thời gian delay bán",
     Value = "0.1",
-    Placeholder = "0.1 hoặc 0,1",
+    Placeholder = "0.1",
     Callback = function(Text)
         local sanitizedText = string.gsub(Text, ",", ".")
         local num = tonumber(sanitizedText)
@@ -339,10 +280,7 @@ AutoSection2:Toggle({
         _G.AutoSell = Value
         task.spawn(function()
             local Networking
-            pcall(function()
-                Networking = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Networking"))
-            end)
-
+            pcall(function() Networking = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Networking")) end)
             while _G.AutoSell do
                 if Networking and Networking.NPCS and Networking.NPCS.SellAll then
                     Networking.NPCS.SellAll:Fire()
@@ -354,17 +292,13 @@ AutoSection2:Toggle({
 })
 
 ---------------------------------------------------------
--- CHUNG: KẾT NỐI REMOTE PACKET
+-- CHUNG: PACKET REMOTE
 ---------------------------------------------------------
-local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules")
-    :WaitForChild("Packet")
-    :WaitForChild("RemoteEvent")
+local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
 
 ---------------------------------------------------------
--- MỤC: SHOP (BAO GỒM SEED VÀ GEAR)
+-- TAB: SHOP (SEED & GEAR)
 ---------------------------------------------------------
-
--- 1. SHOP HẠT GIỐNG
 local SeedSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống (Seed Shop)" })
 
 local AllSeeds = {
@@ -394,22 +328,16 @@ end
 
 local function buySeedFast(seedName)
     local buf = SeedBuffers[seedName]
-    if buf then
-        PacketRemote:FireServer(buf)
-    end
+    if buf then PacketRemote:FireServer(buf) end
 end
 
 local function filterSeeds(filterType)
     local filtered = {}
     for _, name in ipairs(AllSeeds) do
         local isMaple = string.find(name, "Maple") ~= nil
-        if filterType == "Normal" and not isMaple then
-            table.insert(filtered, name)
-        elseif filterType == "Maple" and isMaple then
-            table.insert(filtered, name)
-        elseif filterType == "All" then
-            table.insert(filtered, name)
-        end
+        if filterType == "Normal" and not isMaple then table.insert(filtered, name)
+        elseif filterType == "Maple" and isMaple then table.insert(filtered, name)
+        elseif filterType == "All" then table.insert(filtered, name) end
     end
     return filtered
 end
@@ -418,37 +346,31 @@ local SeedDropdown
 
 SeedSection:Dropdown({
     Title = "Lọc Loại Hạt Giống",
-    Desc = "Lọc hạt Thường (Normal) hoặc Hạt Phong (Maple)",
+    Desc = "Lọc hạt Thường hoặc Hạt Phong",
     Values = { "All", "Normal", "Maple" },
     Value = "All",
     Callback = function(Value)
-        local newList = filterSeeds(Value)
-        if SeedDropdown then
-            SeedDropdown:SetValues(newList)
-        end
+        if SeedDropdown then SeedDropdown:SetValues(filterSeeds(Value)) end
     end
 })
 
 SeedDropdown = SeedSection:Dropdown({
     Title = "Chọn Hạt Giống (Multi-Select)",
-    Desc = "Tích chọn 1 hoặc nhiều hạt giống muốn mua",
+    Desc = "Tích chọn hạt muốn mua",
     Values = AllSeeds,
     Multi = true,
     Value = { AllSeeds[1] },
-    Callback = function(Values)
-        _G.SelectedSeeds = Values
-    end
+    Callback = function(Values) _G.SelectedSeeds = Values end
 })
 
 SeedSection:Toggle({
     Title = "Auto Buy Selected Seeds",
-    Desc = "Mua lặp tất cả các hạt đã chọn",
     Value = false,
     Callback = function(Value)
         _G.AutoBuySeed = Value
         task.spawn(function()
             while _G.AutoBuySeed do
-                if _G.SelectedSeeds and #_G.SelectedSeeds > 0 then
+                if _G.SelectedSeeds then
                     for _, seedName in ipairs(_G.SelectedSeeds) do
                         if not _G.AutoBuySeed then break end
                         buySeedFast(seedName)
@@ -463,7 +385,6 @@ SeedSection:Toggle({
 
 SeedSection:Toggle({
     Title = "Auto Buy All Seeds",
-    Desc = "Duyệt mua toàn bộ danh sách hạt giống trong shop",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyAllSeeds = Value
@@ -480,7 +401,7 @@ SeedSection:Toggle({
     end
 })
 
--- 2. SHOP DỤNG CỤ (GEAR SHOP)
+-- SHOP GEAR
 local GearSection = ShopTab:Section({ Title = "Cửa Hàng Dụng Cụ (Gear Shop)" })
 
 local AllGears = {
@@ -502,9 +423,7 @@ end
 
 local function buyGearFast(gearName)
     local buf = GearBuffers[gearName]
-    if buf then
-        PacketRemote:FireServer(buf)
-    end
+    if buf then PacketRemote:FireServer(buf) end
 end
 
 GearSection:Dropdown({
@@ -513,20 +432,17 @@ GearSection:Dropdown({
     Values = AllGears,
     Multi = true,
     Value = { AllGears[1] },
-    Callback = function(Values)
-        _G.SelectedGears = Values
-    end
+    Callback = function(Values) _G.SelectedGears = Values end
 })
 
 GearSection:Toggle({
     Title = "Auto Buy Selected Gear",
-    Desc = "Mua lặp tất cả các Gear đã tích chọn",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyGear = Value
         task.spawn(function()
             while _G.AutoBuyGear do
-                if _G.SelectedGears and #_G.SelectedGears > 0 then
+                if _G.SelectedGears then
                     for _, gearName in ipairs(_G.SelectedGears) do
                         if not _G.AutoBuyGear then break end
                         buyGearFast(gearName)
@@ -541,7 +457,6 @@ GearSection:Toggle({
 
 GearSection:Toggle({
     Title = "Auto Buy All Gear",
-    Desc = "Tự động mua tất cả loại Syrup Watering Can & Sprinkler",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyAllGears = Value
@@ -559,20 +474,20 @@ GearSection:Toggle({
 })
 
 ---------------------------------------------------------
--- MỤC: SPEED (TÁCH THÀNH TAB RIÊNG ĐẦY ĐỦ)
+-- TAB: SPEED (FIX CÚ PHÁP WINDUI)
 ---------------------------------------------------------
-local SpeedSection = SpeedTab:Section({ Title = "Cài Đặt Tốc Độ Di Chuyển" })
+local SpeedSection = SpeedTab:Section({ Title = "Tốc Độ Di Chuyển" })
 
 _G.WalkSpeedValue = 16
 _G.ActivateSpeed = false
 
+-- Sửa cấu trúc Slider chuẩn của WindUI
 SpeedSection:Slider({
-    Title = "Speed",
-    Desc = "Thanh kéo chỉnh tốc độ di chuyển (1 -> 100)",
+    Title = "WalkSpeed",
+    Desc = "Kéo để chỉnh tốc độ chạy",
     Min = 1,
     Max = 100,
-    Step = 1,
-    Value = 16,
+    Default = 16,
     Callback = function(Value)
         _G.WalkSpeedValue = Value
         if _G.ActivateSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -583,7 +498,7 @@ SpeedSection:Slider({
 
 SpeedSection:Toggle({
     Title = "Activate Speed",
-    Desc = "Bật / Tắt tốc độ di chuyển đã chỉnh",
+    Desc = "Bật/Tắt tốc độ di chuyển",
     Value = false,
     Callback = function(Value)
         _G.ActivateSpeed = Value
@@ -593,7 +508,6 @@ SpeedSection:Toggle({
     end
 })
 
--- Duy trì Speed liên tục tránh bị game reset
 RunService.Stepped:Connect(function()
     if _G.ActivateSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         if LocalPlayer.Character.Humanoid.WalkSpeed ~= _G.WalkSpeedValue then
@@ -603,13 +517,13 @@ RunService.Stepped:Connect(function()
 end)
 
 ---------------------------------------------------------
--- MỤC: MISC (TỐI ƯU VƯỜN, FPS BOOSTER, ANTI-AFK)
+-- TAB: MISC (FIX CÚ PHÁP WINDUI)
 ---------------------------------------------------------
-local MiscSection1 = MiscTab:Section({ Title = "Tối Ưu Vườn (Garden Visibility)" })
+local MiscSection1 = MiscTab:Section({ Title = "Tối Ưu Vườn" })
 
 MiscSection1:Toggle({
     Title = "Hide Others Garden",
-    Desc = "Tàng hình toàn bộ vườn của người chơi khác xung quanh",
+    Desc = "Ẩn toàn bộ vườn người khác",
     Value = false,
     Callback = function(Value)
         local gardens = workspace:FindFirstChild("Gardens")
@@ -631,7 +545,7 @@ MiscSection1:Toggle({
 
 MiscSection1:Toggle({
     Title = "Hide Your Garden",
-    Desc = "Tàng hình vườn của bản thân",
+    Desc = "Ẩn vườn bản thân",
     Value = false,
     Callback = function(Value)
         if _G.MyPlot then
@@ -645,11 +559,11 @@ MiscSection1:Toggle({
     end
 })
 
-local MiscSection2 = MiscTab:Section({ Title = "Tối Ưu Đồ Họa & Chức Năng AFK" })
+local MiscSection2 = MiscTab:Section({ Title = "Đồ Họa & Anti-AFK" })
 
 MiscSection2:Button({
     Title = "FPS BOOSTER",
-    Desc = "Xóa Texture, Effect, Bóng đổ để đẩy FPS lên tối đa",
+    Desc = "Xóa Texture/Bóng để tăng FPS",
     Callback = function()
         local Terrain = workspace:FindFirstChildOfClass('Terrain')
         if Terrain then
@@ -658,7 +572,6 @@ MiscSection2:Button({
             Terrain.WaterReflectance = 0
             Terrain.WaterTransparency = 0
         end
-        
         game:GetService("Lighting").GlobalShadows = false
         game:GetService("Lighting").FogEnd = 9e9
         
@@ -672,14 +585,11 @@ MiscSection2:Button({
                 v.Enabled = false
             end
         end
-        
-        WindUI:Notify({ Title = "FPS BOOSTER", Content = "Đã tối ưu hóa đồ họa thành công!", Duration = 3 })
+        WindUI:Notify({ Title = "FPS BOOSTER", Content = "Đã tối ưu FPS!", Duration = 3 })
     end
 })
 
--- =========================================================
--- CHỨC NĂNG ANTI-AFK MÀN HÌNH TRẮNG
--- =========================================================
+-- AFK SCREEN
 local AFKGui = nil
 local AFKTimerThread = nil
 local AFKKeyThread = nil
@@ -723,14 +633,10 @@ local function createAFKScreen()
         while _G.AntiAFK do
             local fps = math.floor(1 / math.max(RunService.RenderStepped:Wait(), 0.001))
             local leaves = getLeavesValue()
-            
             local hrs = math.floor(AFKSeconds / 3600)
             local mins = math.floor((AFKSeconds % 3600) / 60)
             local secs = AFKSeconds % 60
-            local timeStr = string.format("%d:%02d:%02d", hrs, mins, secs)
-
-            InfoLabel.Text = string.format("🍁 %s  |  FPS: %d  |  AFK:%s", formatNumber(leaves), fps, timeStr)
-            
+            InfoLabel.Text = string.format("🍁 %s  |  FPS: %d  |  AFK:%d:%02d:%02d", formatNumber(leaves), fps, hrs, mins, secs)
             task.wait(1)
             AFKSeconds = AFKSeconds + 1
         end
@@ -751,30 +657,17 @@ local function createAFKScreen()
 end
 
 local function removeAFKScreen()
-    if AFKGui then
-        AFKGui:Destroy()
-        AFKGui = nil
-    end
-    if AFKTimerThread then
-        task.cancel(AFKTimerThread)
-        AFKTimerThread = nil
-    end
-    if AFKKeyThread then
-        task.cancel(AFKKeyThread)
-        AFKKeyThread = nil
-    end
+    if AFKGui then AFKGui:Destroy() AFKGui = nil end
+    if AFKTimerThread then task.cancel(AFKTimerThread) AFKTimerThread = nil end
+    if AFKKeyThread then task.cancel(AFKKeyThread) AFKKeyThread = nil end
 end
 
 MiscSection2:Toggle({
     Title = "Anti-AFK (Màn Hình Trắng)",
-    Desc = "Bật màn hình trắng AFK & Tự động gửi phím tránh bị Kick",
+    Desc = "Màn hình trắng & Tự động chống văng AFK",
     Value = false,
     Callback = function(Value)
         _G.AntiAFK = Value
-        if Value then
-            createAFKScreen()
-        else
-            removeAFKScreen()
-        end
+        if Value then createAFKScreen() else removeAFKScreen() end
     end
 })
