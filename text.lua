@@ -147,8 +147,8 @@ task.spawn(function()
             "⚡ FPS: %d | Ping: %dms | Frame: %dms\n\n" ..
             "🏡 Vườn (Plot): %s\n\n" ..
             "Trạng thái: Đang hoạt động ổn định\n\n" ..
-            "Phiên bản: Gemini GAG2 - Restructured UI\n\n" ..
-            "Cập nhật: Tách Tab Speed ra ngoài & Gộp Gear vào Shop",
+            "Phiên bản: Gemini GAG2\n\n" ..
+            "Cập nhật: Đã sửa lại Tab Speed, Shop & Misc",
             LocalPlayer.Name,
             formatNumber(leaves),
             fps,
@@ -361,10 +361,10 @@ local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules")
     :WaitForChild("RemoteEvent")
 
 ---------------------------------------------------------
--- MỤC: SHOP (BAO GỒM CẢ SEED VÀ GEAR)
+-- MỤC: SHOP (BAO GỒM SEED VÀ GEAR)
 ---------------------------------------------------------
 
--- 1. SHOP HẠT GIỐNG (SEED SHOP)
+-- 1. SHOP HẠT GIỐNG
 local SeedSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống (Seed Shop)" })
 
 local AllSeeds = {
@@ -480,7 +480,7 @@ SeedSection:Toggle({
     end
 })
 
--- 2. SHOP DỤNG CỤ (GEAR SHOP - ĐÃ ĐƯỢC CHUYỂN VÀO ĐÂY)
+-- 2. SHOP DỤNG CỤ (GEAR SHOP)
 local GearSection = ShopTab:Section({ Title = "Cửa Hàng Dụng Cụ (Gear Shop)" })
 
 local AllGears = {
@@ -559,7 +559,7 @@ GearSection:Toggle({
 })
 
 ---------------------------------------------------------
--- MỤC: SPEED (ĐƯỢC ĐẶT Ở TAB RIÊNG BÊN NGOÀI)
+-- MỤC: SPEED (TÁCH THÀNH TAB RIÊNG ĐẦY ĐỦ)
 ---------------------------------------------------------
 local SpeedSection = SpeedTab:Section({ Title = "Cài Đặt Tốc Độ Di Chuyển" })
 
@@ -568,7 +568,7 @@ _G.ActivateSpeed = false
 
 SpeedSection:Slider({
     Title = "Speed",
-    Desc = "Thanh kéo chỉnh tốc độ (1 -> 100)",
+    Desc = "Thanh kéo chỉnh tốc độ di chuyển (1 -> 100)",
     Min = 1,
     Max = 100,
     Step = 1,
@@ -583,7 +583,7 @@ SpeedSection:Slider({
 
 SpeedSection:Toggle({
     Title = "Activate Speed",
-    Desc = "Cần gạt bật/tắt tốc độ di chuyển",
+    Desc = "Bật / Tắt tốc độ di chuyển đã chỉnh",
     Value = false,
     Callback = function(Value)
         _G.ActivateSpeed = Value
@@ -593,7 +593,7 @@ SpeedSection:Toggle({
     end
 })
 
--- Duy trì Speed liên tục
+-- Duy trì Speed liên tục tránh bị game reset
 RunService.Stepped:Connect(function()
     if _G.ActivateSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         if LocalPlayer.Character.Humanoid.WalkSpeed ~= _G.WalkSpeedValue then
@@ -603,13 +603,13 @@ RunService.Stepped:Connect(function()
 end)
 
 ---------------------------------------------------------
--- MỤC: MISC
+-- MỤC: MISC (TỐI ƯU VƯỜN, FPS BOOSTER, ANTI-AFK)
 ---------------------------------------------------------
 local MiscSection1 = MiscTab:Section({ Title = "Tối Ưu Vườn (Garden Visibility)" })
 
 MiscSection1:Toggle({
     Title = "Hide Others Garden",
-    Desc = "Tàng hình toàn bộ garden xung quanh",
+    Desc = "Tàng hình toàn bộ vườn của người chơi khác xung quanh",
     Value = false,
     Callback = function(Value)
         local gardens = workspace:FindFirstChild("Gardens")
@@ -630,7 +630,7 @@ MiscSection1:Toggle({
 })
 
 MiscSection1:Toggle({
-    Title = "Hide You Garden",
+    Title = "Hide Your Garden",
     Desc = "Tàng hình vườn của bản thân",
     Value = false,
     Callback = function(Value)
@@ -649,7 +649,7 @@ local MiscSection2 = MiscTab:Section({ Title = "Tối Ưu Đồ Họa & Chức N
 
 MiscSection2:Button({
     Title = "FPS BOOSTER",
-    Desc = "Xóa Texture, Effect, Shadows để tối ưu FPS",
+    Desc = "Xóa Texture, Effect, Bóng đổ để đẩy FPS lên tối đa",
     Callback = function()
         local Terrain = workspace:FindFirstChildOfClass('Terrain')
         if Terrain then
@@ -673,12 +673,12 @@ MiscSection2:Button({
             end
         end
         
-        WindUI:Notify({ Title = "FPS BOOSTER", Content = "Đã tối ưu hóa FPS!", Duration = 3 })
+        WindUI:Notify({ Title = "FPS BOOSTER", Content = "Đã tối ưu hóa đồ họa thành công!", Duration = 3 })
     end
 })
 
 -- =========================================================
--- SYSTEM MÀN HÌNH TRẮNG AFK
+-- CHỨC NĂNG ANTI-AFK MÀN HÌNH TRẮNG
 -- =========================================================
 local AFKGui = nil
 local AFKTimerThread = nil
@@ -765,9 +765,9 @@ local function removeAFKScreen()
     end
 end
 
-local AFKToggle = MiscSection2:Toggle({
+MiscSection2:Toggle({
     Title = "Anti-AFK (Màn Hình Trắng)",
-    Desc = "Bật màn hình trắng AFK & Bấm phím PC mỗi 1 phút",
+    Desc = "Bật màn hình trắng AFK & Tự động gửi phím tránh bị Kick",
     Value = false,
     Callback = function(Value)
         _G.AntiAFK = Value
