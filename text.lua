@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Fixed WindUI Component Syntax)
+-- PANEL GEMINI - GAG2 (Direct Tab Binding - Anti Blank Tab)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -11,32 +11,18 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
--- Link WindUI
+-- Load WindUI library
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 -- 1. TẠO WINDOW CHÍNH
 local Window = WindUI:CreateWindow({
     Title = "Panel Gemini",
     Author = "WhiteSs",
-    Icon = "sprout",
     Folder = "GeminiGAG2",
     Size = UDim2.fromOffset(580, 460),
     Transparent = true,
     Theme = "Dark"
 })
-
--- Ép ScreenGui lên DisplayOrder cao nhất
-task.spawn(function()
-    task.wait(0.5)
-    pcall(function()
-        local parentTarget = (gethui and gethui()) or CoreGui
-        for _, gui in ipairs(parentTarget:GetChildren()) do
-            if gui:IsA("ScreenGui") and gui.Name ~= "Gemini_AFK_Screen_Minimal" then
-                gui.DisplayOrder = 9999
-            end
-        end
-    end)
-end)
 
 -- 2. KHỞI TẠO TABS
 local MainTab  = Window:Tab({ Title = "Main",  Icon = "home" })
@@ -46,7 +32,7 @@ local SpeedTab = Window:Tab({ Title = "Speed", Icon = "zap" })
 local MiscTab  = Window:Tab({ Title = "Misc",  Icon = "sliders" })
 
 -- =========================================================
--- LOGIC DÒ PLOT
+-- LOGIC DÒ PLOT & DỮ LIỆU
 -- =========================================================
 _G.MyPlot = nil
 local SavedPlotName = "workspace.Gardens.Plot1"
@@ -112,14 +98,12 @@ end
 ---------------------------------------------------------
 -- TAB: MAIN
 ---------------------------------------------------------
-local MainSection = MainTab:Section({ Title = "Thông Tin Hub" })
-
-MainSection:Paragraph({
+MainTab:Paragraph({
     Title = "Panel Gemini | Grow A Garden 2",
     Desc = "=> WhiteSs"
 })
 
-local StatusParagraph = MainSection:Paragraph({
+local StatusParagraph = MainTab:Paragraph({
     Title = "📊 Status Hệ Thống",
     Desc = "Đang tải dữ liệu..."
 })
@@ -142,14 +126,12 @@ end)
 ---------------------------------------------------------
 -- TAB: AUTO
 ---------------------------------------------------------
-local AutoSection1 = AutoTab:Section({ Title = "Thu Hoạch & Hạt Giống" })
-
 _G.FruitBatchLimit = 1
 _G.AutoHarvest = false
 _G.AutoCollectSeed = false
 _G.LookAtTarget = true
 
-AutoSection1:Input({
+AutoTab:Input({
     Title = "FruitHarvest Amount",
     Desc = "Số lượng quả thu hoạch / đợt",
     Value = "1",
@@ -160,7 +142,7 @@ AutoSection1:Input({
     end
 })
 
-AutoSection1:Toggle({
+AutoTab:Toggle({
     Title = "Look At Plant When Harvest",
     Desc = "Xoay camera về phía quả thu hoạch",
     Value = true,
@@ -217,7 +199,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-AutoSection1:Toggle({
+AutoTab:Toggle({
     Title = "Auto Harvest",
     Value = false,
     Callback = function(Value) _G.AutoHarvest = Value end
@@ -251,16 +233,14 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-AutoSection1:Toggle({
+AutoTab:Toggle({
     Title = "Auto Collect Seed",
     Value = false,
     Callback = function(Value) _G.AutoCollectSeed = Value end
 })
 
-local AutoSection2 = AutoTab:Section({ Title = "Tự Động Bán Đồ" })
-
 _G.DelaySell = 0.1
-AutoSection2:Input({
+AutoTab:Input({
     Title = "DelaySell",
     Desc = "Thời gian delay bán",
     Value = "0.1",
@@ -273,7 +253,7 @@ AutoSection2:Input({
 })
 
 _G.AutoSell = false
-AutoSection2:Toggle({
+AutoTab:Toggle({
     Title = "Auto Sell Inventory",
     Value = false,
     Callback = function(Value)
@@ -292,14 +272,9 @@ AutoSection2:Toggle({
 })
 
 ---------------------------------------------------------
--- CHUNG: PACKET REMOTE
+-- SHOP
 ---------------------------------------------------------
 local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
-
----------------------------------------------------------
--- TAB: SHOP (SEED & GEAR)
----------------------------------------------------------
-local SeedSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống (Seed Shop)" })
 
 local AllSeeds = {
     "Carrot", "Strawberry", "Blueberry", "Tulip", "Tomato", 
@@ -331,30 +306,7 @@ local function buySeedFast(seedName)
     if buf then PacketRemote:FireServer(buf) end
 end
 
-local function filterSeeds(filterType)
-    local filtered = {}
-    for _, name in ipairs(AllSeeds) do
-        local isMaple = string.find(name, "Maple") ~= nil
-        if filterType == "Normal" and not isMaple then table.insert(filtered, name)
-        elseif filterType == "Maple" and isMaple then table.insert(filtered, name)
-        elseif filterType == "All" then table.insert(filtered, name) end
-    end
-    return filtered
-end
-
-local SeedDropdown
-
-SeedSection:Dropdown({
-    Title = "Lọc Loại Hạt Giống",
-    Desc = "Lọc hạt Thường hoặc Hạt Phong",
-    Values = { "All", "Normal", "Maple" },
-    Value = "All",
-    Callback = function(Value)
-        if SeedDropdown then SeedDropdown:SetValues(filterSeeds(Value)) end
-    end
-})
-
-SeedDropdown = SeedSection:Dropdown({
+ShopTab:Dropdown({
     Title = "Chọn Hạt Giống (Multi-Select)",
     Desc = "Tích chọn hạt muốn mua",
     Values = AllSeeds,
@@ -363,7 +315,7 @@ SeedDropdown = SeedSection:Dropdown({
     Callback = function(Values) _G.SelectedSeeds = Values end
 })
 
-SeedSection:Toggle({
+ShopTab:Toggle({
     Title = "Auto Buy Selected Seeds",
     Value = false,
     Callback = function(Value)
@@ -383,7 +335,7 @@ SeedSection:Toggle({
     end
 })
 
-SeedSection:Toggle({
+ShopTab:Toggle({
     Title = "Auto Buy All Seeds",
     Value = false,
     Callback = function(Value)
@@ -401,93 +353,18 @@ SeedSection:Toggle({
     end
 })
 
--- SHOP GEAR
-local GearSection = ShopTab:Section({ Title = "Cửa Hàng Dụng Cụ (Gear Shop)" })
-
-local AllGears = {
-    "Syrup Watering Can",
-    "Syrup Sprinkler",
-    "Super Syrup Watering Can",
-    "Super Syrup Sprinkler"
-}
-
-_G.SelectedGears = {}
-_G.AutoBuyGear = false
-_G.AutoBuyAllGears = false
-
-local GearBuffers = {}
-for _, name in ipairs(AllGears) do
-    local payload = "\164\000" .. string.char(#name) .. name
-    GearBuffers[name] = buffer.fromstring(payload)
-end
-
-local function buyGearFast(gearName)
-    local buf = GearBuffers[gearName]
-    if buf then PacketRemote:FireServer(buf) end
-end
-
-GearSection:Dropdown({
-    Title = "Chọn Gear (Multi-Select)",
-    Desc = "Tích chọn Dụng Cụ muốn mua",
-    Values = AllGears,
-    Multi = true,
-    Value = { AllGears[1] },
-    Callback = function(Values) _G.SelectedGears = Values end
-})
-
-GearSection:Toggle({
-    Title = "Auto Buy Selected Gear",
-    Value = false,
-    Callback = function(Value)
-        _G.AutoBuyGear = Value
-        task.spawn(function()
-            while _G.AutoBuyGear do
-                if _G.SelectedGears then
-                    for _, gearName in ipairs(_G.SelectedGears) do
-                        if not _G.AutoBuyGear then break end
-                        buyGearFast(gearName)
-                        task.wait(0.02)
-                    end
-                end
-                task.wait(0.05)
-            end
-        end)
-    end
-})
-
-GearSection:Toggle({
-    Title = "Auto Buy All Gear",
-    Value = false,
-    Callback = function(Value)
-        _G.AutoBuyAllGears = Value
-        task.spawn(function()
-            while _G.AutoBuyAllGears do
-                for _, gearName in ipairs(AllGears) do
-                    if not _G.AutoBuyAllGears then break end
-                    buyGearFast(gearName)
-                    task.wait(0.02)
-                end
-                task.wait(0.1)
-            end
-        end)
-    end
-})
-
 ---------------------------------------------------------
--- TAB: SPEED (FIX CÚ PHÁP WINDUI)
+-- TAB: SPEED
 ---------------------------------------------------------
-local SpeedSection = SpeedTab:Section({ Title = "Tốc Độ Di Chuyển" })
-
 _G.WalkSpeedValue = 16
 _G.ActivateSpeed = false
 
--- Sửa cấu trúc Slider chuẩn của WindUI
-SpeedSection:Slider({
+SpeedTab:Slider({
     Title = "WalkSpeed",
     Desc = "Kéo để chỉnh tốc độ chạy",
     Min = 1,
     Max = 100,
-    Default = 16,
+    Value = 16,
     Callback = function(Value)
         _G.WalkSpeedValue = Value
         if _G.ActivateSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -496,7 +373,7 @@ SpeedSection:Slider({
     end
 })
 
-SpeedSection:Toggle({
+SpeedTab:Toggle({
     Title = "Activate Speed",
     Desc = "Bật/Tắt tốc độ di chuyển",
     Value = false,
@@ -517,11 +394,9 @@ RunService.Stepped:Connect(function()
 end)
 
 ---------------------------------------------------------
--- TAB: MISC (FIX CÚ PHÁP WINDUI)
+-- TAB: MISC
 ---------------------------------------------------------
-local MiscSection1 = MiscTab:Section({ Title = "Tối Ưu Vườn" })
-
-MiscSection1:Toggle({
+MiscTab:Toggle({
     Title = "Hide Others Garden",
     Desc = "Ẩn toàn bộ vườn người khác",
     Value = false,
@@ -543,7 +418,7 @@ MiscSection1:Toggle({
     end
 })
 
-MiscSection1:Toggle({
+MiscTab:Toggle({
     Title = "Hide Your Garden",
     Desc = "Ẩn vườn bản thân",
     Value = false,
@@ -559,9 +434,7 @@ MiscSection1:Toggle({
     end
 })
 
-local MiscSection2 = MiscTab:Section({ Title = "Đồ Họa & Anti-AFK" })
-
-MiscSection2:Button({
+MiscTab:Button({
     Title = "FPS BOOSTER",
     Desc = "Xóa Texture/Bóng để tăng FPS",
     Callback = function()
@@ -662,7 +535,7 @@ local function removeAFKScreen()
     if AFKKeyThread then task.cancel(AFKKeyThread) AFKKeyThread = nil end
 end
 
-MiscSection2:Toggle({
+MiscTab:Toggle({
     Title = "Anti-AFK (Màn Hình Trắng)",
     Desc = "Màn hình trắng & Tự động chống văng AFK",
     Value = false,
