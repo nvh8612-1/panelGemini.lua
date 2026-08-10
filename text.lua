@@ -1,5 +1,5 @@
 -- ====================================================================
--- PANEL GEMINI - GAG2 (Instant Fire No Wait + Heartbeat Loop)
+-- PANEL GEMINI - GAG2 (Speed Tab & Merged Gear Shop)
 -- Script được làm bởi WhiteSs
 -- ====================================================================
 
@@ -38,12 +38,12 @@ task.spawn(function()
     end)
 end)
 
--- 2. KHỞI TẠO TABS
-local MainTab = Window:Tab({ Title = "Main", Icon = "home" })
-local AutoTab = Window:Tab({ Title = "Auto", Icon = "repeat" })
-local ShopTab = Window:Tab({ Title = "Shop", Icon = "shopping-cart" })
-local GearTab = Window:Tab({ Title = "Gear", Icon = "wrench" })
-local MiscTab = Window:Tab({ Title = "Misc", Icon = "sliders" })
+-- 2. KHỞI TẠO TABS (Speed nằm riêng bên ngoài, Gear đã gộp vào Shop)
+local MainTab  = Window:Tab({ Title = "Main",  Icon = "home" })
+local AutoTab  = Window:Tab({ Title = "Auto",  Icon = "repeat" })
+local ShopTab  = Window:Tab({ Title = "Shop",  Icon = "shopping-cart" })
+local SpeedTab = Window:Tab({ Title = "Speed", Icon = "zap" })
+local MiscTab  = Window:Tab({ Title = "Misc",  Icon = "sliders" })
 
 -- =========================================================
 -- LOGIC DÒ PLOT CHUẨN ĐÉT QUA ATTRIBUTES
@@ -147,8 +147,8 @@ task.spawn(function()
             "⚡ FPS: %d | Ping: %dms | Frame: %dms\n\n" ..
             "🏡 Vườn (Plot): %s\n\n" ..
             "Trạng thái: Đang hoạt động ổn định\n\n" ..
-            "Phiên bản: Gemini GAG2 - Ultra Max Speed (No Wait)\n\n" ..
-            "Nâng cấp: Heartbeat Loop, Target LookAt, Full Shop & Gear,...",
+            "Phiên bản: Gemini GAG2 - Restructured UI\n\n" ..
+            "Cập nhật: Tách Tab Speed ra ngoài & Gộp Gear vào Shop",
             LocalPlayer.Name,
             formatNumber(leaves),
             fps,
@@ -162,7 +162,7 @@ task.spawn(function()
 end)
 
 ---------------------------------------------------------
--- MỤC: AUTO (SIÊU TỐC KHÔNG WAIT + HEARTBEAT FRAME)
+-- MỤC: AUTO
 ---------------------------------------------------------
 local AutoSection1 = AutoTab:Section({ Title = "Thu Hoạch & Hạt Giống" })
 
@@ -191,7 +191,6 @@ AutoSection1:Toggle({
     end
 })
 
--- Hàm xoay Camera hướng về mục tiêu
 local function lookAtPosition(targetPos)
     local camera = workspace.CurrentCamera
     if camera then
@@ -199,7 +198,6 @@ local function lookAtPosition(targetPos)
     end
 end
 
--- Kích hoạt Prompt không delay, mở rộng tầm xa
 local function triggerHarvestPrompt(prompt, targetPart)
     if not prompt then return end
     pcall(function()
@@ -219,7 +217,6 @@ local function triggerHarvestPrompt(prompt, targetPart)
     end)
 end
 
--- Hàm thu hoạch siêu tốc chạy theo Heartbeat (XÓA BỎ HOÀN TOÀN TASK.WAIT)
 local function processHarvestUltraFast()
     if not _G.AutoHarvest then return end
 
@@ -255,7 +252,6 @@ local function processHarvestUltraFast()
     end)
 end
 
--- Sử dụng Heartbeat của RunService để lặp theo khung hình game (nhanh nhất có thể)
 RunService.Heartbeat:Connect(function()
     if _G.AutoHarvest then
         processHarvestUltraFast()
@@ -270,7 +266,6 @@ AutoSection1:Toggle({
     end
 })
 
--- Thu gom hạt siêu tốc không wait
 local function triggerPickupPrompt(prompt, targetPart)
     if not prompt then return end
     pcall(function()
@@ -366,9 +361,11 @@ local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules")
     :WaitForChild("RemoteEvent")
 
 ---------------------------------------------------------
--- MỤC: SHOP
+-- MỤC: SHOP (BAO GỒM CẢ SEED VÀ GEAR)
 ---------------------------------------------------------
-local ShopSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống" })
+
+-- 1. SHOP HẠT GIỐNG (SEED SHOP)
+local SeedSection = ShopTab:Section({ Title = "Cửa Hàng Hạt Giống (Seed Shop)" })
 
 local AllSeeds = {
     "Carrot", "Strawberry", "Blueberry", "Tulip", "Tomato", 
@@ -391,7 +388,7 @@ _G.AutoBuyAllSeeds = false
 
 local SeedBuffers = {}
 for _, name in ipairs(AllSeeds) do
-    local payload = "\159\000" .. string.char(#name) .. name
+    local payload = "\160\000" .. string.char(#name) .. name
     SeedBuffers[name] = buffer.fromstring(payload)
 end
 
@@ -419,7 +416,7 @@ end
 
 local SeedDropdown
 
-ShopSection:Dropdown({
+SeedSection:Dropdown({
     Title = "Lọc Loại Hạt Giống",
     Desc = "Lọc hạt Thường (Normal) hoặc Hạt Phong (Maple)",
     Values = { "All", "Normal", "Maple" },
@@ -432,7 +429,7 @@ ShopSection:Dropdown({
     end
 })
 
-SeedDropdown = ShopSection:Dropdown({
+SeedDropdown = SeedSection:Dropdown({
     Title = "Chọn Hạt Giống (Multi-Select)",
     Desc = "Tích chọn 1 hoặc nhiều hạt giống muốn mua",
     Values = AllSeeds,
@@ -443,7 +440,7 @@ SeedDropdown = ShopSection:Dropdown({
     end
 })
 
-ShopSection:Toggle({
+SeedSection:Toggle({
     Title = "Auto Buy Selected Seeds",
     Desc = "Mua lặp tất cả các hạt đã chọn",
     Value = false,
@@ -464,7 +461,7 @@ ShopSection:Toggle({
     end
 })
 
-ShopSection:Toggle({
+SeedSection:Toggle({
     Title = "Auto Buy All Seeds",
     Desc = "Duyệt mua toàn bộ danh sách hạt giống trong shop",
     Value = false,
@@ -483,10 +480,8 @@ ShopSection:Toggle({
     end
 })
 
----------------------------------------------------------
--- MỤC: GEAR
----------------------------------------------------------
-local GearSection = GearTab:Section({ Title = "Cửa Hàng Dụng Cụ (Gear Shop)" })
+-- 2. SHOP DỤNG CỤ (GEAR SHOP - ĐÃ ĐƯỢC CHUYỂN VÀO ĐÂY)
+local GearSection = ShopTab:Section({ Title = "Cửa Hàng Dụng Cụ (Gear Shop)" })
 
 local AllGears = {
     "Syrup Watering Can",
@@ -501,7 +496,7 @@ _G.AutoBuyAllGears = false
 
 local GearBuffers = {}
 for _, name in ipairs(AllGears) do
-    local payload = "\163\000" .. string.char(#name) .. name
+    local payload = "\164\000" .. string.char(#name) .. name
     GearBuffers[name] = buffer.fromstring(payload)
 end
 
@@ -562,6 +557,50 @@ GearSection:Toggle({
         end)
     end
 })
+
+---------------------------------------------------------
+-- MỤC: SPEED (ĐƯỢC ĐẶT Ở TAB RIÊNG BÊN NGOÀI)
+---------------------------------------------------------
+local SpeedSection = SpeedTab:Section({ Title = "Cài Đặt Tốc Độ Di Chuyển" })
+
+_G.WalkSpeedValue = 16
+_G.ActivateSpeed = false
+
+SpeedSection:Slider({
+    Title = "Speed",
+    Desc = "Thanh kéo chỉnh tốc độ (1 -> 100)",
+    Min = 1,
+    Max = 100,
+    Step = 1,
+    Value = 16,
+    Callback = function(Value)
+        _G.WalkSpeedValue = Value
+        if _G.ActivateSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = _G.WalkSpeedValue
+        end
+    end
+})
+
+SpeedSection:Toggle({
+    Title = "Activate Speed",
+    Desc = "Cần gạt bật/tắt tốc độ di chuyển",
+    Value = false,
+    Callback = function(Value)
+        _G.ActivateSpeed = Value
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = Value and _G.WalkSpeedValue or 16
+        end
+    end
+})
+
+-- Duy trì Speed liên tục
+RunService.Stepped:Connect(function()
+    if _G.ActivateSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        if LocalPlayer.Character.Humanoid.WalkSpeed ~= _G.WalkSpeedValue then
+            LocalPlayer.Character.Humanoid.WalkSpeed = _G.WalkSpeedValue
+        end
+    end
+end)
 
 ---------------------------------------------------------
 -- MỤC: MISC
