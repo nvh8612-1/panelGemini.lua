@@ -612,11 +612,18 @@ MiscSection2:Button({
     Title = "FPS BOOSTER",
     Desc = "Xóa Texture, Effect, Shadows để tối ưu FPS",
     Callback = function()
-        local Terrain = workspace:FindFirstChildOfClass('Terrain')
+        local Terrain = workspace:FindFirstChildOfClass("Terrain")
+
         if Terrain then
             Terrain.WaterWaveSize = 0
             Terrain.WaterWaveSpeed = 0
             Terrain.WaterReflectance = 0
+        end
+
+        -- các phần FPS BOOSTER còn lại...
+    end
+})
+
 ---------------------------------------------------------
 -- MỤC: SPEED TAP
 ---------------------------------------------------------
@@ -630,16 +637,17 @@ _G.OriginalWalkSpeed = nil
 
 local function getHumanoid()
     local character = LocalPlayer.Character
-    if not character then return nil end
+    if not character then
+        return nil
+    end
 
     return character:FindFirstChildOfClass("Humanoid")
 end
 
 local function applySpeed()
     local humanoid = getHumanoid()
-    if not humanoid then return end
 
-    if _G.SpeedTap then
+    if humanoid and _G.SpeedTap then
         humanoid.WalkSpeed = _G.SpeedValue
     end
 end
@@ -666,23 +674,25 @@ SpeedSection:Toggle({
     Title = "Activate Speed",
     Desc = "Bật / tắt SpeedTap",
     Value = false,
+
     Callback = function(Value)
         _G.SpeedTap = Value
 
         local humanoid = getHumanoid()
-        if not humanoid then return end
+        if not humanoid then
+            return
+        end
 
         if Value then
-            -- Lưu WalkSpeed gốc
             if _G.OriginalWalkSpeed == nil then
                 _G.OriginalWalkSpeed = humanoid.WalkSpeed
             end
 
             humanoid.WalkSpeed = _G.SpeedValue
         else
-            -- Khôi phục WalkSpeed gốc
             if _G.OriginalWalkSpeed ~= nil then
                 humanoid.WalkSpeed = _G.OriginalWalkSpeed
+                _G.OriginalWalkSpeed = nil
             else
                 humanoid.WalkSpeed = 16
             end
@@ -690,12 +700,8 @@ SpeedSection:Toggle({
     end
 })
 
--- Tự áp dụng lại Speed khi nhân vật respawn
 LocalPlayer.CharacterAdded:Connect(function(character)
-    task.wait(0.5)
-
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-        or character:WaitForChild("Humanoid", 5)
+    local humanoid = character:WaitForChild("Humanoid", 5)
 
     if humanoid and _G.SpeedTap then
         _G.OriginalWalkSpeed = humanoid.WalkSpeed
