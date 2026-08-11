@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Fixed Shop Seed Buffer Issue)
+-- Full Version (Fixed Anti-AFK 100% No Kick / Standing Still)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 local Lighting = game:GetService("Lighting")
 local VirtualUser = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -469,7 +470,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ====================================================================
--- SHOP TAB (FIXED SHOP SEEDS BUFFER / REMOTE)
+-- SHOP TAB
 -- ====================================================================
 
 local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
@@ -529,28 +530,14 @@ ShopSeedDropdown = ShopSection:Dropdown({
     end
 })
 
--- LOGIC MUA HẠT CHUẨN FIX BUFFER CHO CẢ MAPLE VÀ HẠT THƯỜNG
 local function buySeedFast(seedName)
     pcall(function()
         local isMaple = string.find(string.lower(seedName), "maple") ~= nil
-        local b
-        
-        if isMaple then
-            -- Maple Seeds Packet Structure
-            b = buffer.create(3 + #seedName)
-            buffer.writeu8(b, 0, 160) -- Maple Opcode
-            buffer.writeu8(b, 1, 0)
-            buffer.writeu8(b, 2, #seedName)
-            buffer.writestring(b, 3, seedName)
-        else
-            -- Normal Seeds Packet Structure
-            b = buffer.create(3 + #seedName)
-            buffer.writeu8(b, 0, 159) -- Normal Opcode
-            buffer.writeu8(b, 1, 0)
-            buffer.writeu8(b, 2, #seedName)
-            buffer.writestring(b, 3, seedName)
-        end
-        
+        local b = buffer.create(3 + #seedName)
+        buffer.writeu8(b, 0, isMaple and 160 or 159)
+        buffer.writeu8(b, 1, 0)
+        buffer.writeu8(b, 2, #seedName)
+        buffer.writestring(b, 3, seedName)
         PacketRemote:FireServer(b)
     end)
 end
@@ -596,7 +583,7 @@ ShopSection:Toggle({
 })
 
 -- ====================================================================
--- GEAR TAB (DỤNG CỤ)
+-- GEAR TAB
 -- ====================================================================
 
 local GearSection = GearTab:Section({ Title = "🔧 Cửa Hàng Gear" })
@@ -679,7 +666,7 @@ GearSection:Toggle({
 })
 
 -- ====================================================================
--- MISC TAB (TỐI ƯU & ANTI-AFK)
+-- MISC TAB (NÂNG CẤP ANTI-AFK CHỐNG KICK BẰNG VIRTUAL INPUT & IDLED HOOK)
 -- ====================================================================
 
 local MiscSection1 = MiscTab:Section({ Title = "🌳 Tối Ưu Vườn" })
@@ -753,23 +740,39 @@ MiscSection2:Button({
     end
 })
 
--- TÍNH NĂNG ANTI-AFK KHÔNG DI CHUYỂN / KHÔNG NHẢY
+-- HỆ THỐNG ANTI-AFK ĐÃ TỐI ƯU CHỐNG KICK
 _G.AntiAFK = true
 
 MiscSection2:Toggle({
-    Title = "Anti-AFK (No Move)",
-    Desc = "Treo máy không sợ bị văng (Đứng yên 100%)",
+    Title = "Anti-AFK (No Kick)",
+    Desc = "Chống văng 100% (Giữ nhân vật đứng yên)",
     Value = true,
     Callback = function(Value)
         _G.AntiAFK = Value
     end
 })
 
+-- 1. Bắt sự kiện Idled mặc định
 LocalPlayer.Idled:Connect(function()
     if _G.AntiAFK then
         pcall(function()
             VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
+            VirtualUser:ClickButton2(Vector2.new(0,0))
         end)
+    end
+end)
+
+-- 2. Vòng lặp Virtual Input mô phỏng tương tác nền (Mỗi 60s)
+task.spawn(function()
+    while true do
+        task.wait(60)
+        if _G.AntiAFK then
+            pcall(function()
+                -- Gửi tín hiệu giữ nhịp kết nối nhưng KHÔNG làm di chuyển nhân vật
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Unknown, false, game)
+                task.wait(0.1)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Unknown, false, game)
+            end)
+        end
     end
 end)
