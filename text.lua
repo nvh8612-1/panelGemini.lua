@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Optimized Multi-Select Toggle)
+-- Full Version (Fixed Shop Seed Buffer Issue)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -203,7 +203,6 @@ AutoSection1:Dropdown({
     end
 })
 
--- LOGIC TOGGLE MULTI-SELECT HARVEST
 HarvestDropdown = AutoSection1:Dropdown({
     Title = "Harvest Select",
     Desc = "Bấm 1 lần chọn, bấm lại để bỏ chọn",
@@ -470,7 +469,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ====================================================================
--- SHOP TAB (MUA HẠT GIỐNG)
+-- SHOP TAB (FIXED SHOP SEEDS BUFFER / REMOTE)
 -- ====================================================================
 
 local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
@@ -530,15 +529,30 @@ ShopSeedDropdown = ShopSection:Dropdown({
     end
 })
 
-local SeedBuffers = {}
-for _, name in ipairs(AllSeeds) do
-    local payload = "\160\000" .. string.char(#name) .. name
-    SeedBuffers[name] = buffer.fromstring(payload)
-end
-
+-- LOGIC MUA HẠT CHUẨN FIX BUFFER CHO CẢ MAPLE VÀ HẠT THƯỜNG
 local function buySeedFast(seedName)
-    local buf = SeedBuffers[seedName]
-    if buf then PacketRemote:FireServer(buf) end
+    pcall(function()
+        local isMaple = string.find(string.lower(seedName), "maple") ~= nil
+        local b
+        
+        if isMaple then
+            -- Maple Seeds Packet Structure
+            b = buffer.create(3 + #seedName)
+            buffer.writeu8(b, 0, 160) -- Maple Opcode
+            buffer.writeu8(b, 1, 0)
+            buffer.writeu8(b, 2, #seedName)
+            buffer.writestring(b, 3, seedName)
+        else
+            -- Normal Seeds Packet Structure
+            b = buffer.create(3 + #seedName)
+            buffer.writeu8(b, 0, 159) -- Normal Opcode
+            buffer.writeu8(b, 1, 0)
+            buffer.writeu8(b, 2, #seedName)
+            buffer.writestring(b, 3, seedName)
+        end
+        
+        PacketRemote:FireServer(b)
+    end)
 end
 
 ShopSection:Toggle({
@@ -598,17 +612,15 @@ _G.SelectedGears = {}
 _G.AutoBuyGear = false
 _G.AutoBuyAllGears = false
 
-local GearBuffers = {}
-for _, name in ipairs(AllGears) do
-    local payload = "\164\000" .. string.char(#name) .. name
-    GearBuffers[name] = buffer.fromstring(payload)
-end
-
 local function buyGearFast(gearName)
-    local bufferData = GearBuffers[gearName]
-    if bufferData then
-        PacketRemote:FireServer(bufferData)
-    end
+    pcall(function()
+        local b = buffer.create(3 + #gearName)
+        buffer.writeu8(b, 0, 164)
+        buffer.writeu8(b, 1, 0)
+        buffer.writeu8(b, 2, #gearName)
+        buffer.writestring(b, 3, gearName)
+        PacketRemote:FireServer(b)
+    end)
 end
 
 GearSection:Dropdown({
