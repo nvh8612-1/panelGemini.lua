@@ -532,7 +532,7 @@ ShopSeedDropdown = ShopSection:Dropdown({
 
 local SeedBuffers = {}
 for _, name in ipairs(AllSeeds) do
-    local payload = "\159\000" .. string.char(#name) .. name
+    local payload = "\160\000" .. string.char(#name) .. name
     SeedBuffers[name] = buffer.fromstring(payload)
 end
 
