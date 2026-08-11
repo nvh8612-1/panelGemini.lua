@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Fixed Anti-AFK 100% No Kick / Standing Still)
+-- Full Version (Ultimate Anti-AFK Fix + Tween Auto Collect)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -10,8 +10,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 local Lighting = game:GetService("Lighting")
-local VirtualUser = game:GetService("VirtualUser")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -166,6 +165,7 @@ local AutoSection1 = AutoTab:Section({ Title = "🌱 Thu Hoạch & Hạt Giống
 _G.FruitBatchLimit = 1
 _G.AutoHarvest = false
 _G.AutoCollectSeed = false
+_G.TweenCollectSpeed = 35 -- Tốc độ bay mặc định
 _G.LookAtTarget = false
 _G.HarvestSelectedSeeds = {}
 
@@ -338,17 +338,34 @@ AutoSection1:Toggle({
 })
 
 -- ====================================================================
--- AUTO COLLECT
+-- AUTO COLLECT (ĐÃ THÊM CƠ CHẾ TWEEN)
 -- ====================================================================
+
+AutoSection1:Slider({
+    Title = "Tốc độ Tween nhặt Seed",
+    Desc = "Điều chỉnh tốc độ bay (Khuyên dùng: 30-40)",
+    Step = 1,
+    Value = { Min = 10, Max = 100, Default = 35 },
+    Callback = function(Value)
+        _G.TweenCollectSpeed = tonumber(Value) or 35
+    end
+})
+
+AutoSection1:Toggle({
+    Title = "Auto Collect Seed (Tween)",
+    Desc = "Tự động bay đến nhặt Seed",
+    Value = false,
+    Callback = function(Value) 
+        _G.AutoCollectSeed = Value 
+    end
+})
 
 local function triggerPickupPrompt(prompt)
     if not prompt then return end
     pcall(function()
-        pcall(function()
-            prompt.HoldDuration = 0
-            prompt.MaxActivationDistance = 99999
-            prompt.RequiresLineOfSight = false
-        end)
+        prompt.HoldDuration = 0
+        prompt.MaxActivationDistance = 99999
+        prompt.RequiresLineOfSight = false
 
         if firePickupPrompt then
             firePickupPrompt(prompt)
@@ -358,26 +375,43 @@ local function triggerPickupPrompt(prompt)
     end)
 end
 
-RunService.Heartbeat:Connect(function()
-    if not _G.AutoCollectSeed then return end
-    pcall(function()
-        local folder = workspace:FindFirstChild("DroppedItems")
-        if not folder then return end
+task.spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoCollectSeed then
+            pcall(function()
+                local folder = workspace:FindFirstChild("DroppedItems")
+                if not folder then return end
+                
+                local char = LocalPlayer.Character
+                if not char then return end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
 
-        for _, item in ipairs(folder:GetChildren()) do
-            if not _G.AutoCollectSeed then break end
-            local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
-            if prompt then triggerPickupPrompt(prompt) end
+                for _, item in ipairs(folder:GetChildren()) do
+                    if not _G.AutoCollectSeed then break end
+
+                    local basePart = item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart", true)
+                    local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
+
+                    if basePart and prompt then
+                        -- Tween tới vị trí vật phẩm
+                        local distance = (hrp.Position - basePart.Position).Magnitude
+                        local timeToTween = distance / (_G.TweenCollectSpeed or 35)
+
+                        local tweenInfo = TweenInfo.new(timeToTween, Enum.EasingStyle.Linear)
+                        local tween = TweenService:Create(hrp, tweenInfo, {CFrame = basePart.CFrame})
+                        tween:Play()
+                        tween.Completed:Wait()
+
+                        -- Nhặt vật phẩm
+                        triggerPickupPrompt(prompt)
+                        task.wait(0.2) -- Chờ một xíu để nhặt thành công trước khi qua cái mới
+                    end
+                end
+            end)
         end
-    end)
+    end
 end)
-
-AutoSection1:Toggle({
-    Title = "Auto Collect Seed",
-    Desc = "Tự động nhặt Seed",
-    Value = false,
-    Callback = function(Value) _G.AutoCollectSeed = Value end
-})
 
 -- ====================================================================
 -- AUTO SELL
@@ -429,16 +463,16 @@ AutoSection2:Toggle({
 -- ====================================================================
 
 local SpeedSection = AutoTab:Section({ Title = "⚡ Speed" })
-_G.WalkSpeed = 1
+_G.WalkSpeed = 16
 _G.ActivateSpeed = false
 
 SpeedSection:Slider({
     Title = "Tốc độ Di chuyển",
-    Desc = "Humanoid.WalkSpeed: 1 → 36",
+    Desc = "Humanoid.WalkSpeed: 16 → 50",
     Step = 1,
-    Value = { Min = 1, Max = 36, Default = 1 },
+    Value = { Min = 16, Max = 50, Default = 16 },
     Callback = function(Value)
-        _G.WalkSpeed = math.clamp(tonumber(Value) or 1, 1, 36)
+        _G.WalkSpeed = math.clamp(tonumber(Value) or 16, 16, 50)
     end
 })
 
@@ -465,7 +499,7 @@ RunService.Heartbeat:Connect(function()
 
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if humanoid then
-        humanoid.WalkSpeed = math.clamp(_G.WalkSpeed or 1, 1, 36)
+        humanoid.WalkSpeed = math.clamp(_G.WalkSpeed or 16, 16, 50)
     end
 end)
 
@@ -666,7 +700,7 @@ GearSection:Toggle({
 })
 
 -- ====================================================================
--- MISC TAB (NÂNG CẤP ANTI-AFK CHỐNG KICK BẰNG VIRTUAL INPUT & IDLED HOOK)
+-- MISC TAB (ULTIMATE ANTI-AFK: DISCONNECT IDLED LISTENERS & CAMERA JITTER)
 -- ====================================================================
 
 local MiscSection1 = MiscTab:Section({ Title = "🌳 Tối Ưu Vườn" })
@@ -740,38 +774,38 @@ MiscSection2:Button({
     end
 })
 
--- HỆ THỐNG ANTI-AFK ĐÃ TỐI ƯU CHỐNG KICK
+-- HỆ THỐNG ANTI-AFK SIÊU CẤP CHỐNG DISCONNECT MOBILE/UGPHONE
 _G.AntiAFK = true
 
 MiscSection2:Toggle({
-    Title = "Anti-AFK (No Kick)",
-    Desc = "Chống văng 100% (Giữ nhân vật đứng yên)",
+    Title = "Anti-AFK (Ultimate)",
+    Desc = "Xóa Idled Connection & Xoay nhẹ Camera (Không di chuyển)",
     Value = true,
     Callback = function(Value)
         _G.AntiAFK = Value
     end
 })
 
--- 1. Bắt sự kiện Idled mặc định
-LocalPlayer.Idled:Connect(function()
-    if _G.AntiAFK then
-        pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new(0,0))
-        end)
+-- 1. Hủy toàn bộ listener của sự kiện Idled ngay lập tức
+pcall(function()
+    for _, conn in ipairs(getconnections(LocalPlayer.Idled)) do
+        if conn.Disable then conn:Disable() end
+        if conn.Disconnect then conn:Disconnect() end
     end
 end)
 
--- 2. Vòng lặp Virtual Input mô phỏng tương tác nền (Mỗi 60s)
+-- 2. Vòng lặp xoay camera siêu nhẹ (0.001 rad) để masqurate người dùng thực
 task.spawn(function()
     while true do
-        task.wait(60)
+        task.wait(15) -- Chạy định kỳ mỗi 15 giây
         if _G.AntiAFK then
             pcall(function()
-                -- Gửi tín hiệu giữ nhịp kết nối nhưng KHÔNG làm di chuyển nhân vật
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Unknown, false, game)
-                task.wait(0.1)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Unknown, false, game)
+                local cam = workspace.CurrentCamera
+                if cam then
+                    cam.CFrame = cam.CFrame * CFrame.Angles(0, math.rad(0.01), 0)
+                    task.wait(0.05)
+                    cam.CFrame = cam.CFrame * CFrame.Angles(0, math.rad(-0.01), 0)
+                end
             end)
         end
     end
