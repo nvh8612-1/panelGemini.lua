@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Ultimate Anti-AFK Fix + Tween Auto Collect)
+-- Full Version (Fixed Atlantic Giant Pumpkin strictly to Maple Shop)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -165,7 +165,7 @@ local AutoSection1 = AutoTab:Section({ Title = "🌱 Thu Hoạch & Hạt Giống
 _G.FruitBatchLimit = 1
 _G.AutoHarvest = false
 _G.AutoCollectSeed = false
-_G.TweenCollectSpeed = 35 -- Tốc độ bay mặc định
+_G.TweenCollectSpeed = 35
 _G.LookAtTarget = false
 _G.HarvestSelectedSeeds = {}
 
@@ -338,7 +338,7 @@ AutoSection1:Toggle({
 })
 
 -- ====================================================================
--- AUTO COLLECT (ĐÃ THÊM CƠ CHẾ TWEEN)
+-- AUTO COLLECT (TWEEN)
 -- ====================================================================
 
 AutoSection1:Slider({
@@ -394,7 +394,6 @@ task.spawn(function()
                     local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
 
                     if basePart and prompt then
-                        -- Tween tới vị trí vật phẩm
                         local distance = (hrp.Position - basePart.Position).Magnitude
                         local timeToTween = distance / (_G.TweenCollectSpeed or 35)
 
@@ -403,9 +402,8 @@ task.spawn(function()
                         tween:Play()
                         tween.Completed:Wait()
 
-                        -- Nhặt vật phẩm
                         triggerPickupPrompt(prompt)
-                        task.wait(0.2) -- Chờ một xíu để nhặt thành công trước khi qua cái mới
+                        task.wait(0.2)
                     end
                 end
             end)
@@ -504,7 +502,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ====================================================================
--- SHOP TAB
+-- SHOP TAB (MAPLE SHOP FIXED FOR ATLANTIC GIANT PUMPKIN)
 -- ====================================================================
 
 local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
@@ -564,11 +562,16 @@ ShopSeedDropdown = ShopSection:Dropdown({
     end
 })
 
+-- LOGIC MUA CHUẨN: MAPLE SHOP DÙNG OPCODE 160
 local function buySeedFast(seedName)
     pcall(function()
-        local isMaple = string.find(string.lower(seedName), "maple") ~= nil
+        local lowerName = string.lower(seedName)
+        local isMapleShop = (string.find(lowerName, "maple") ~= nil) or (lowerName == "atlantic giant pumpkin")
+        
+        local opcode = isMapleShop and 160 or 159
+
         local b = buffer.create(3 + #seedName)
-        buffer.writeu8(b, 0, isMaple and 160 or 159)
+        buffer.writeu8(b, 0, opcode)
         buffer.writeu8(b, 1, 0)
         buffer.writeu8(b, 2, #seedName)
         buffer.writestring(b, 3, seedName)
@@ -700,7 +703,7 @@ GearSection:Toggle({
 })
 
 -- ====================================================================
--- MISC TAB (ULTIMATE ANTI-AFK: DISCONNECT IDLED LISTENERS & CAMERA JITTER)
+-- MISC TAB
 -- ====================================================================
 
 local MiscSection1 = MiscTab:Section({ Title = "🌳 Tối Ưu Vườn" })
@@ -774,7 +777,6 @@ MiscSection2:Button({
     end
 })
 
--- HỆ THỐNG ANTI-AFK SIÊU CẤP CHỐNG DISCONNECT MOBILE/UGPHONE
 _G.AntiAFK = true
 
 MiscSection2:Toggle({
@@ -786,7 +788,6 @@ MiscSection2:Toggle({
     end
 })
 
--- 1. Hủy toàn bộ listener của sự kiện Idled ngay lập tức
 pcall(function()
     for _, conn in ipairs(getconnections(LocalPlayer.Idled)) do
         if conn.Disable then conn:Disable() end
@@ -794,10 +795,9 @@ pcall(function()
     end
 end)
 
--- 2. Vòng lặp xoay camera siêu nhẹ (0.001 rad) để masqurate người dùng thực
 task.spawn(function()
     while true do
-        task.wait(15) -- Chạy định kỳ mỗi 15 giây
+        task.wait(15)
         if _G.AntiAFK then
             pcall(function()
                 local cam = workspace.CurrentCamera
