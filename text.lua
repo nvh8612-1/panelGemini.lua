@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (All Seed Opcode 160 + WASD Anti-AFK 15 Mins)
+-- Full Version (Fixed GUI Load + Auto Buy Pet via PetSpawn)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -11,7 +11,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -54,6 +53,7 @@ end)
 local MainTab = Window:Tab({ Title = "Main", Icon = "home" })
 local AutoTab = Window:Tab({ Title = "Auto", Icon = "repeat" })
 local ShopTab = Window:Tab({ Title = "Shop", Icon = "shopping-cart" })
+local PetTab = Window:Tab({ Title = "Pet", Icon = "dog" })
 local GearTab = Window:Tab({ Title = "Gear", Icon = "wrench" })
 local MiscTab = Window:Tab({ Title = "Misc", Icon = "sliders" })
 
@@ -563,11 +563,10 @@ ShopSeedDropdown = ShopSection:Dropdown({
     end
 })
 
--- 1. FIX THEO YÊU CẦU: TOÀN BỘ SEED DÙNG OPCODE 160
 local function buySeedFast(seedName)
     pcall(function()
         local b = buffer.create(3 + #seedName)
-        buffer.writeu8(b, 0, 160) -- Đã đổi toàn bộ Shop thành Opcode 160
+        buffer.writeu8(b, 0, 160) -- Opcode 160
         buffer.writeu8(b, 1, 0)
         buffer.writeu8(b, 2, #seedName)
         buffer.writestring(b, 3, seedName)
@@ -606,4 +605,312 @@ ShopSection:Toggle({
             while _G.AutoBuyAllSeeds do
                 for _, seedName in ipairs(AllSeeds) do
                     if not _G.AutoBuyAllSeeds then break end
-                  
+                    buySeedFast(seedName)
+                    task.wait(0.02)
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+})
+
+-- ====================================================================
+-- PET TAB (AUTO BUY PET FOXX & WOLF TỪ PETSPAWN)
+-- ====================================================================
+
+local PetSection = PetTab:Section({ Title = "🐾 Mua Pet Tự Động" })
+
+_G.SelectedPets = { "Fox", "Wolf" }
+_G.AutoBuyPet = false
+_G.TweenPetSpeed = 40
+
+PetSection:Dropdown({
+    Title = "Chọn Pet Muốn Mua",
+    Desc = "Mặc định chọn Fox & Wolf",
+    Values = { "Fox", "Wolf", "Turkey", "Deer", "Bear", "Rabbit", "Owl" },
+    Multi = true,
+    Value = { "Fox", "Wolf" },
+    Callback = function(Values)
+        if typeof(Values) == "table" then
+            _G.SelectedPets = Values
+        else
+            _G.SelectedPets = {}
+        end
+    end
+})
+
+PetSection:Slider({
+    Title = "Tốc độ Tween đến Pet",
+    Desc = "Tốc độ di chuyển",
+    Step = 1,
+    Value = { Min = 10, Max = 100, Default = 40 },
+    Callback = function(Value)
+        _G.TweenPetSpeed = tonumber(Value) or 40
+    end
+})
+
+local function triggerBuyPrompt(prompt)
+    if not prompt then return end
+    pcall(function()
+        prompt.HoldDuration = 0
+        prompt.MaxActivationDistance = 99999
+        prompt.RequiresLineOfSight = false
+
+        if fireproximityprompt then
+            fireproximityprompt(prompt)
+        end
+    end)
+end
+
+PetSection:Toggle({
+    Title = "Auto Buy Pet (Fox/Wolf)",
+    Desc = "Quét PetSpawn -> Tween đến Pet -> Kích hoạt BuyPrompt",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoBuyPet = Value
+    end
+})
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.AutoBuyPet then
+            pcall(function()
+                local petSpawnFolder = workspace:FindFirstChild("PetSpawn")
+                if not petSpawnFolder then return end
+
+                local char = LocalPlayer.Character
+                if not char then return end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+
+                for _, petModel in ipairs(petSpawnFolder:GetChildren()) do
+                    if not _G.AutoBuyPet then break end
+
+                    local petNameAttr = petModel:GetAttribute("PetName") or petModel.Name
+                    
+                    -- Kiểm tra xem PetName có nằm trong danh sách được chọn không
+                    local isMatched = false
+                    for _, targetName in ipairs(_G.SelectedPets or {}) do
+                        if string.find(string.lower(tostring(petNameAttr)), string.lower(tostring(targetName))) then
+                            isMatched = true
+                            break
+                        end
+                    end
+
+                    if isMatched then
+                        local buyPrompt = petModel:FindFirstChild("BuyPrompt", true) or petModel:FindFirstChildWhichIsA("ProximityPrompt", true)
+                        local targetPart = petModel:FindFirstChild("RootPart") or petModel:FindFirstChildWhichIsA("BasePart", true)
+
+                        if buyPrompt and targetPart then
+                            local distance = (hrp.Position - targetPart.Position).Magnitude
+                            local tweenTime = distance / (_G.TweenPetSpeed or 40)
+
+                            local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
+                            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetPart.CFrame * CFrame.new(0, 2, 3)})
+                            tween:Play()
+                            tween.Completed:Wait()
+
+                            task.wait(0.1)
+                            triggerBuyPrompt(buyPrompt)
+                            task.wait(0.3)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ====================================================================
+-- GEAR TAB
+-- ====================================================================
+
+local GearSection = GearTab:Section({ Title = "🔧 Cửa Hàng Gear" })
+
+local AllGears = {
+    "Syrup Watering Can",
+    "Syrup Sprinkler",
+    "Super Syrup Watering Can",
+    "Super Syrup Sprinkler"
+}
+
+_G.SelectedGears = {}
+_G.AutoBuyGear = false
+_G.AutoBuyAllGears = false
+
+local function buyGearFast(gearName)
+    pcall(function()
+        local b = buffer.create(3 + #gearName)
+        buffer.writeu8(b, 0, 164)
+        buffer.writeu8(b, 1, 0)
+        buffer.writeu8(b, 2, #gearName)
+        buffer.writestring(b, 3, gearName)
+        PacketRemote:FireServer(b)
+    end)
+end
+
+GearSection:Dropdown({
+    Title = "Chọn Gear",
+    Desc = "Multi-Select",
+    Values = AllGears,
+    Multi = true,
+    Value = {},
+    Callback = function(Values)
+        if typeof(Values) == "table" then
+            _G.SelectedGears = Values
+        else
+            _G.SelectedGears = {}
+        end
+    end
+})
+
+GearSection:Toggle({
+    Title = "Auto Buy Selected Gear",
+    Desc = "Mua Gear đã chọn",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoBuyGear = Value
+        if not Value then return end
+        task.spawn(function()
+            while _G.AutoBuyGear do
+                for _, gearName in ipairs(_G.SelectedGears or {}) do
+                    if not _G.AutoBuyGear then break end
+                    buyGearFast(gearName)
+                    task.wait(0.02)
+                end
+                task.wait(0.05)
+            end
+        end)
+    end
+})
+
+GearSection:Toggle({
+    Title = "Auto Buy All Gear",
+    Desc = "Mua toàn bộ Gear",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoBuyAllGears = Value
+        if not Value then return end
+        task.spawn(function()
+            while _G.AutoBuyAllGears do
+                for _, gearName in ipairs(AllGears) do
+                    if not _G.AutoBuyAllGears then break end
+                    buyGearFast(gearName)
+                    task.wait(0.02)
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+})
+
+-- ====================================================================
+-- MISC TAB (FIX ANTI-AFK AN TOÀN - KHÔNG DÙNG VIRTUALINPUTMANAGER)
+-- ====================================================================
+
+local MiscSection1 = MiscTab:Section({ Title = "🌳 Tối Ưu Vườn" })
+
+MiscSection1:Toggle({
+    Title = "Hide Others Garden",
+    Desc = "Ẩn Garden người khác",
+    Value = false,
+    Callback = function(Value)
+        local gardens = workspace:FindFirstChild("Gardens")
+        if not gardens then return end
+
+        for _, obj in ipairs(gardens:GetChildren()) do
+            local isMyPlot = _G.MyPlot and obj == _G.MyPlot
+            if not isMyPlot then
+                for _, child in ipairs(obj:GetDescendants()) do
+                    if child:IsA("BasePart") then
+                        child.Transparency = Value and 1 or 0
+                        child.CanCollide = not Value
+                    end
+                end
+            end
+        end
+    end
+})
+
+MiscSection1:Toggle({
+    Title = "Hide Your Garden",
+    Desc = "Ẩn Garden của bạn",
+    Value = false,
+    Callback = function(Value)
+        if not _G.MyPlot then return end
+        for _, child in ipairs(_G.MyPlot:GetDescendants()) do
+            if child:IsA("BasePart") then
+                child.Transparency = Value and 1 or 0
+                child.CanCollide = not Value
+            end
+        end
+    end
+})
+
+local MiscSection2 = MiscTab:Section({ Title = "🚀 Tối Ưu & Chống AFK" })
+
+MiscSection2:Button({
+    Title = "FPS BOOSTER",
+    Desc = "Giảm Texture / Effect / Shadow",
+    Callback = function()
+        pcall(function()
+            local Terrain = workspace:FindFirstChildOfClass("Terrain")
+            if Terrain then
+                Terrain.WaterWaveSize = 0
+                Terrain.WaterWaveSpeed = 0
+                Terrain.WaterReflectance = 0
+                Terrain.WaterTransparency = 1
+            end
+
+            Lighting.GlobalShadows = false
+
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                    obj.Enabled = false
+                elseif obj:IsA("BasePart") then
+                    obj.Material = Enum.Material.SmoothPlastic
+                end
+            end
+
+            pcall(function()
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            end)
+        end)
+    end
+})
+
+_G.AntiAFK = true
+
+MiscSection2:Toggle({
+    Title = "Anti-AFK (15 Mins Move)",
+    Desc = "Tự nhích nhân vật mỗi 15 phút để chống bị kick AFK",
+    Value = true,
+    Callback = function(Value)
+        _G.AntiAFK = Value
+    end
+})
+
+pcall(function()
+    for _, conn in ipairs(getconnections(LocalPlayer.Idled)) do
+        if conn.Disable then conn:Disable() end
+        if conn.Disconnect then conn:Disconnect() end
+    end
+end)
+
+-- Move an toàn không gây crash GUI
+task.spawn(function()
+    while true do
+        task.wait(900) -- 15 phút
+        if _G.AntiAFK then
+            pcall(function()
+                local char = LocalPlayer.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum:Move(Vector3.new(0, 0, 1), false)
+                    task.wait(0.2)
+                    hum:Move(Vector3.new(0, 0, -1), false)
+                end
+            end)
+        end
+    end
+end)
