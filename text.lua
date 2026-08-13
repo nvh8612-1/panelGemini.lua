@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Fixed GUI Load + Auto Buy Pet via PetSpawn)
+-- Full Version (Added Harp Gear + Auto Buy Pet + All Opcode 160)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -503,7 +503,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ====================================================================
--- SHOP TAB (SỬA TOÀN BỘ SHOP THÀNH 160)
+-- SHOP TAB
 -- ====================================================================
 
 local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
@@ -566,7 +566,7 @@ ShopSeedDropdown = ShopSection:Dropdown({
 local function buySeedFast(seedName)
     pcall(function()
         local b = buffer.create(3 + #seedName)
-        buffer.writeu8(b, 0, 160) -- Opcode 160
+        buffer.writeu8(b, 0, 160)
         buffer.writeu8(b, 1, 0)
         buffer.writeu8(b, 2, #seedName)
         buffer.writestring(b, 3, seedName)
@@ -615,7 +615,7 @@ ShopSection:Toggle({
 })
 
 -- ====================================================================
--- PET TAB (AUTO BUY PET FOXX & WOLF TỪ PETSPAWN)
+-- PET TAB
 -- ====================================================================
 
 local PetSection = PetTab:Section({ Title = "🐾 Mua Pet Tự Động" })
@@ -688,7 +688,6 @@ task.spawn(function()
 
                     local petNameAttr = petModel:GetAttribute("PetName") or petModel.Name
                     
-                    -- Kiểm tra xem PetName có nằm trong danh sách được chọn không
                     local isMatched = false
                     for _, targetName in ipairs(_G.SelectedPets or {}) do
                         if string.find(string.lower(tostring(petNameAttr)), string.lower(tostring(targetName))) then
@@ -722,12 +721,13 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- GEAR TAB
+-- GEAR TAB (ĐÃ THÊM HARP)
 -- ====================================================================
 
 local GearSection = GearTab:Section({ Title = "🔧 Cửa Hàng Gear" })
 
 local AllGears = {
+    "Harp",
     "Syrup Watering Can",
     "Syrup Sprinkler",
     "Super Syrup Watering Can",
@@ -751,7 +751,7 @@ end
 
 GearSection:Dropdown({
     Title = "Chọn Gear",
-    Desc = "Multi-Select",
+    Desc = "Multi-Select (Đã bao gồm Harp)",
     Values = AllGears,
     Multi = true,
     Value = {},
@@ -805,7 +805,7 @@ GearSection:Toggle({
 })
 
 -- ====================================================================
--- MISC TAB (FIX ANTI-AFK AN TOÀN - KHÔNG DÙNG VIRTUALINPUTMANAGER)
+-- MISC TAB
 -- ====================================================================
 
 local MiscSection1 = MiscTab:Section({ Title = "🌳 Tối Ưu Vườn" })
@@ -897,10 +897,9 @@ pcall(function()
     end
 end)
 
--- Move an toàn không gây crash GUI
 task.spawn(function()
     while true do
-        task.wait(900) -- 15 phút
+        task.wait(900)
         if _G.AntiAFK then
             pcall(function()
                 local char = LocalPlayer.Character
