@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Added Harp Gear + Auto Buy Pet + All Opcode 160)
+-- Full Version (Updated Path: workspace.Map.WildPetSpawns)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -615,7 +615,7 @@ ShopSection:Toggle({
 })
 
 -- ====================================================================
--- PET TAB
+-- PET TAB (CẬP NHẬT ĐƯỜNG DẪN: workspace.Map.WildPetSpawns)
 -- ====================================================================
 
 local PetSection = PetTab:Section({ Title = "🐾 Mua Pet Tự Động" })
@@ -627,7 +627,7 @@ _G.TweenPetSpeed = 40
 PetSection:Dropdown({
     Title = "Chọn Pet Muốn Mua",
     Desc = "Mặc định chọn Fox & Wolf",
-    Values = { "Fox", "Wolf", "Turkey", "Deer", "Bear", "Rabbit", "Owl" },
+    Values = { "Fox", "Wolf", "Dog", "Turkey", "Deer", "Bear", "Rabbit", "Owl" },
     Multi = true,
     Value = { "Fox", "Wolf" },
     Callback = function(Values)
@@ -664,7 +664,7 @@ end
 
 PetSection:Toggle({
     Title = "Auto Buy Pet (Fox/Wolf)",
-    Desc = "Quét PetSpawn -> Tween đến Pet -> Kích hoạt BuyPrompt",
+    Desc = "Quét WildPetSpawns -> Tween -> BuyPrompt",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyPet = Value
@@ -675,15 +675,18 @@ task.spawn(function()
     while task.wait(0.5) do
         if _G.AutoBuyPet then
             pcall(function()
-                local petSpawnFolder = workspace:FindFirstChild("PetSpawn")
-                if not petSpawnFolder then return end
+                -- Cập nhật đường dẫn chuẩn theo ảnh Dex của cậu
+                local mapFolder = workspace:FindFirstChild("Map")
+                local wildPetSpawns = mapFolder and mapFolder:FindFirstChild("WildPetSpawns")
+                
+                if not wildPetSpawns then return end
 
                 local char = LocalPlayer.Character
                 if not char then return end
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
 
-                for _, petModel in ipairs(petSpawnFolder:GetChildren()) do
+                for _, petModel in ipairs(wildPetSpawns:GetChildren()) do
                     if not _G.AutoBuyPet then break end
 
                     local petNameAttr = petModel:GetAttribute("PetName") or petModel.Name
@@ -697,15 +700,15 @@ task.spawn(function()
                     end
 
                     if isMatched then
-                        local buyPrompt = petModel:FindFirstChild("BuyPrompt", true) or petModel:FindFirstChildWhichIsA("ProximityPrompt", true)
-                        local targetPart = petModel:FindFirstChild("RootPart") or petModel:FindFirstChildWhichIsA("BasePart", true)
+                        local rootPart = petModel:FindFirstChild("RootPart") or petModel:FindFirstChildWhichIsA("BasePart", true)
+                        local buyPrompt = rootPart and rootPart:FindFirstChild("BuyPrompt") or petModel:FindFirstChildWhichIsA("ProximityPrompt", true)
 
-                        if buyPrompt and targetPart then
-                            local distance = (hrp.Position - targetPart.Position).Magnitude
+                        if buyPrompt and rootPart then
+                            local distance = (hrp.Position - rootPart.Position).Magnitude
                             local tweenTime = distance / (_G.TweenPetSpeed or 40)
 
                             local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
-                            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetPart.CFrame * CFrame.new(0, 2, 3)})
+                            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = rootPart.CFrame * CFrame.new(0, 2, 3)})
                             tween:Play()
                             tween.Completed:Wait()
 
@@ -721,7 +724,7 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- GEAR TAB (ĐÃ THÊM HARP)
+-- GEAR TAB (HARP + OPCODE 164)
 -- ====================================================================
 
 local GearSection = GearTab:Section({ Title = "🔧 Cửa Hàng Gear" })
@@ -751,7 +754,7 @@ end
 
 GearSection:Dropdown({
     Title = "Chọn Gear",
-    Desc = "Multi-Select (Đã bao gồm Harp)",
+    Desc = "Multi-Select (Bao gồm Harp)",
     Values = AllGears,
     Multi = true,
     Value = {},
