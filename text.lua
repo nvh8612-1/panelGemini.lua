@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Updated: Anti-AFK 3Mins & Added Magic Mails to Gear Tab)
+-- Full Version (Updated: Fall Harvest Pets, Magic Mails & Anti-AFK W)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -604,10 +604,14 @@ ShopSection:Toggle({
 })
 
 -- ====================================================================
--- PET TAB
+-- PET TAB (CẬP NHẬT: TOÀN BỘ PET MAP FALL HARVEST)
 -- ====================================================================
 
 local PetSection = PetTab:Section({ Title = "🐾 Mua Pet Tự Động" })
+
+local FallHarvestPets = { 
+    "Fox", "Wolf", "Dog", "Turkey", "Hedgehog", "Squirrel", "Swan", "Bear", "Rabbit", "Owl", "Deer", "Shadow Dragon" 
+}
 
 _G.SelectedPets = { "Fox", "Wolf" }
 _G.AutoBuyPet = false
@@ -616,7 +620,7 @@ _G.TweenPetSpeed = 35
 PetSection:Dropdown({
     Title = "Chọn Pet Muốn Mua",
     Desc = "Mặc định: Fox, Wolf",
-    Values = { "Fox", "Wolf", "Dog", "Turkey", "Deer", "Bear", "Rabbit", "Owl", "Swan", "Squirrel" },
+    Values = FallHarvestPets,
     Multi = true,
     Value = { "Fox", "Wolf" },
     Callback = function(Values)
