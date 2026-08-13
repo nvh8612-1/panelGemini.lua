@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Updated Pets & Default Settings)
+-- Full Version (Updated: Anti-AFK 3Mins & Added Magic Mails to Gear Tab)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -603,7 +604,7 @@ ShopSection:Toggle({
 })
 
 -- ====================================================================
--- PET TAB (DEFAULT: Fox, Wolf | TWEEN: 35)
+-- PET TAB
 -- ====================================================================
 
 local PetSection = PetTab:Section({ Title = "🐾 Mua Pet Tự Động" })
@@ -711,7 +712,7 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- GEAR TAB (OPCODE 164)
+-- GEAR TAB
 -- ====================================================================
 
 local GearSection = GearTab:Section({ Title = "🔧 Cửa Hàng Gear" })
@@ -721,7 +722,10 @@ local AllGears = {
     "Syrup Watering Can",
     "Syrup Sprinkler",
     "Super Syrup Watering Can",
-    "Super Syrup Sprinkler"
+    "Super Syrup Sprinkler",
+    "Rare Magic Mail",
+    "Legendary Magic Mail",
+    "Super Magic Mail"
 }
 
 _G.SelectedGears = {}
@@ -741,7 +745,7 @@ end
 
 GearSection:Dropdown({
     Title = "Chọn Gear",
-    Desc = "Multi-Select (Bao gồm Harp)",
+    Desc = "Multi-Select (Bao gồm Harp & Magic Mails)",
     Values = AllGears,
     Multi = true,
     Value = {},
@@ -872,8 +876,8 @@ MiscSection2:Button({
 _G.AntiAFK = true
 
 MiscSection2:Toggle({
-    Title = "Anti-AFK (15 Mins Move)",
-    Desc = "Tự nhích nhân vật mỗi 15 phút để chống bị kick AFK",
+    Title = "Anti-AFK (Bấm W mỗi 3p)",
+    Desc = "Tự động ấn W trong 0.5s mỗi 3 phút để không bị Kick AFK",
     Value = true,
     Callback = function(Value)
         _G.AntiAFK = Value
@@ -889,16 +893,12 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(900)
+        task.wait(180)
         if _G.AntiAFK then
             pcall(function()
-                local char = LocalPlayer.Character
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum:Move(Vector3.new(0, 0, 1), false)
-                    task.wait(0.2)
-                    hum:Move(Vector3.new(0, 0, -1), false)
-                end
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
+                task.wait(0.5)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
             end)
         end
     end
