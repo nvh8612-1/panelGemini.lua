@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Updated Path: workspace.Map.WildPetSpawns)
+-- Full Version (Updated Pets & Default Settings)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -123,7 +123,7 @@ local function formatNumber(n)
 end
 
 -- ====================================================================
--- MAIN
+-- MAIN TAB
 -- ====================================================================
 
 local MainSection = MainTab:Section({ Title = "Thông Tin Hub" })
@@ -158,7 +158,7 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- AUTO / HARVEST
+-- AUTO TAB
 -- ====================================================================
 
 local AutoSection1 = AutoTab:Section({ Title = "🌱 Thu Hoạch & Hạt Giống" })
@@ -338,13 +338,9 @@ AutoSection1:Toggle({
     Callback = function(Value) _G.AutoHarvest = Value end
 })
 
--- ====================================================================
--- AUTO COLLECT (TWEEN)
--- ====================================================================
-
 AutoSection1:Slider({
     Title = "Tốc độ Tween nhặt Seed",
-    Desc = "Điều chỉnh tốc độ bay (Khuyên dùng: 30-40)",
+    Desc = "Mặc định: 35",
     Step = 1,
     Value = { Min = 10, Max = 100, Default = 35 },
     Callback = function(Value)
@@ -412,10 +408,6 @@ task.spawn(function()
     end
 end)
 
--- ====================================================================
--- AUTO SELL
--- ====================================================================
-
 local AutoSection2 = AutoTab:Section({ Title = "💰 Tự Động Bán" })
 _G.DelaySell = 0
 _G.AutoSell = false
@@ -456,10 +448,6 @@ AutoSection2:Toggle({
         end)
     end
 })
-
--- ====================================================================
--- SPEED
--- ====================================================================
 
 local SpeedSection = AutoTab:Section({ Title = "⚡ Speed" })
 _G.WalkSpeed = 16
@@ -615,19 +603,19 @@ ShopSection:Toggle({
 })
 
 -- ====================================================================
--- PET TAB (CẬP NHẬT ĐƯỜNG DẪN: workspace.Map.WildPetSpawns)
+-- PET TAB (DEFAULT: Fox, Wolf | TWEEN: 35)
 -- ====================================================================
 
 local PetSection = PetTab:Section({ Title = "🐾 Mua Pet Tự Động" })
 
 _G.SelectedPets = { "Fox", "Wolf" }
 _G.AutoBuyPet = false
-_G.TweenPetSpeed = 40
+_G.TweenPetSpeed = 35
 
 PetSection:Dropdown({
     Title = "Chọn Pet Muốn Mua",
-    Desc = "Mặc định chọn Fox & Wolf",
-    Values = { "Fox", "Wolf", "Dog", "Turkey", "Deer", "Bear", "Rabbit", "Owl" },
+    Desc = "Mặc định: Fox, Wolf",
+    Values = { "Fox", "Wolf", "Dog", "Turkey", "Deer", "Bear", "Rabbit", "Owl", "Swan", "Squirrel" },
     Multi = true,
     Value = { "Fox", "Wolf" },
     Callback = function(Values)
@@ -641,11 +629,11 @@ PetSection:Dropdown({
 
 PetSection:Slider({
     Title = "Tốc độ Tween đến Pet",
-    Desc = "Tốc độ di chuyển",
+    Desc = "Mặc định: 35",
     Step = 1,
-    Value = { Min = 10, Max = 100, Default = 40 },
+    Value = { Min = 10, Max = 100, Default = 35 },
     Callback = function(Value)
-        _G.TweenPetSpeed = tonumber(Value) or 40
+        _G.TweenPetSpeed = tonumber(Value) or 35
     end
 })
 
@@ -663,7 +651,7 @@ local function triggerBuyPrompt(prompt)
 end
 
 PetSection:Toggle({
-    Title = "Auto Buy Pet (Fox/Wolf)",
+    Title = "Auto Buy Pet",
     Desc = "Quét WildPetSpawns -> Tween -> BuyPrompt",
     Value = false,
     Callback = function(Value)
@@ -675,7 +663,6 @@ task.spawn(function()
     while task.wait(0.5) do
         if _G.AutoBuyPet then
             pcall(function()
-                -- Cập nhật đường dẫn chuẩn theo ảnh Dex của cậu
                 local mapFolder = workspace:FindFirstChild("Map")
                 local wildPetSpawns = mapFolder and mapFolder:FindFirstChild("WildPetSpawns")
                 
@@ -705,7 +692,7 @@ task.spawn(function()
 
                         if buyPrompt and rootPart then
                             local distance = (hrp.Position - rootPart.Position).Magnitude
-                            local tweenTime = distance / (_G.TweenPetSpeed or 40)
+                            local tweenTime = distance / (_G.TweenPetSpeed or 35)
 
                             local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
                             local tween = TweenService:Create(hrp, tweenInfo, {CFrame = rootPart.CFrame * CFrame.new(0, 2, 3)})
@@ -724,7 +711,7 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- GEAR TAB (HARP + OPCODE 164)
+-- GEAR TAB (OPCODE 164)
 -- ====================================================================
 
 local GearSection = GearTab:Section({ Title = "🔧 Cửa Hàng Gear" })
