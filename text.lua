@@ -1,6 +1,6 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Updated: Fall Harvest Pets, Magic Mails & Anti-AFK W)
+-- Full Version (Updated: Auto Shovel, Fall Harvest Pets, Magic Mails & Anti-AFK W)
 -- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
@@ -12,7 +12,6 @@ local CoreGui = game:GetService("CoreGui")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-
 local LocalPlayer = Players.LocalPlayer
 
 -- ====================================================================
@@ -35,10 +34,8 @@ local Window = WindUI:CreateWindow({
 
 task.spawn(function()
     task.wait(0.5)
-
     pcall(function()
         local parentTarget = (gethui and gethui()) or CoreGui
-
         for _, gui in ipairs(parentTarget:GetChildren()) do
             if gui:IsA("ScreenGui") then
                 gui.DisplayOrder = 9999
@@ -83,21 +80,17 @@ local SavedPlotName = "workspace.Gardens.Plot1"
 local function findMyPlot()
     local gardens = workspace:FindFirstChild("Gardens")
     if not gardens then return nil end
-
     for _, plot in ipairs(gardens:GetChildren()) do
         local owner = plot:GetAttribute("Owner")
         local userId = plot:GetAttribute("OwnerUserId")
-
         if owner and tostring(owner) == LocalPlayer.Name then return plot end
         if userId and tonumber(userId) == LocalPlayer.UserId then return plot end
-
         local ownerValue = plot:FindFirstChild("Owner") or plot:FindFirstChild("OwnerName") or plot:FindFirstChild("Player")
         if ownerValue then
             if ownerValue:IsA("StringValue") and ownerValue.Value == LocalPlayer.Name then return plot end
             if ownerValue:IsA("ObjectValue") and ownerValue.Value == LocalPlayer then return plot end
         end
     end
-
     return gardens:FindFirstChild("Plot1") or gardens:FindFirstChild("plot1") or gardens:GetChildren()[1]
 end
 
@@ -128,7 +121,6 @@ end
 -- ====================================================================
 
 local MainSection = MainTab:Section({ Title = "Thông Tin Hub" })
-
 MainSection:Paragraph({ 
     Title = "Gemini Hub", 
     Desc = "Gemini và 1 cổ đông Chat GPT đã hỗ trợ Hub này\n=> WhiteSs" 
@@ -143,11 +135,9 @@ task.spawn(function()
             pcall(function()
                 ping = math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
             end)
-
             local fps = 0
             local dt = RunService.RenderStepped:Wait()
             if dt > 0 then fps = math.floor(1 / dt) end
-
             StatusParagraph:SetDesc(
                 string.format(
                     "👤 Người chơi: %s\n\n🍁 Leaves: %s\n\n⚡ FPS: %d | Ping: %dms\n\n🏡 Plot: %s\n\nGemini Hub",
@@ -170,7 +160,6 @@ _G.AutoCollectSeed = false
 _G.TweenCollectSpeed = 35
 _G.LookAtTarget = false
 _G.HarvestSelectedSeeds = {}
-
 local HarvestDropdown
 
 local function filterHarvestSeeds(filterType)
@@ -179,7 +168,6 @@ local function filterHarvestSeeds(filterType)
         local lowerName = string.lower(name)
         local isMaple = string.find(lowerName, "maple", 1, true) ~= nil
         local isAtlantic = lowerName == "atlantic giant pumpkin"
-
         if filterType == "All" then
             table.insert(filtered, name)
         elseif filterType == "Normal" then
@@ -265,13 +253,10 @@ local function getPlantSeedName(plant)
     if not plant then return nil end
     local attr = plant:GetAttribute("SeedName")
     if attr ~= nil then return tostring(attr) end
-
     local value = plant:FindFirstChild("SeedName", true)
     if value and value:IsA("StringValue") then return tostring(value.Value) end
-
     local attrName = plant:GetAttribute("Name")
     if attrName ~= nil then return tostring(attrName) end
-
     return plant.Name
 end
 
@@ -279,23 +264,19 @@ local function fireHarvestFromPlant(plant)
     if not plant then return false end
     local harvestPart = plant:FindFirstChild("HarvestPart", true)
     if not harvestPart then return false end
-
     local harvestPrompt = harvestPart:FindFirstChild("HarvestPrompt", true) or harvestPart:FindFirstChildWhichIsA("ProximityPrompt", true)
     if not harvestPrompt then return false end
-
     local success = false
     pcall(function()
         if _G.LookAtTarget then
             local basePart = harvestPart:IsA("BasePart") and harvestPart or harvestPart:FindFirstChildWhichIsA("BasePart", true)
             if basePart then lookAtPosition(basePart.Position) end
         end
-
         pcall(function()
             harvestPrompt.HoldDuration = 0
             harvestPrompt.MaxActivationDistance = 99999
             harvestPrompt.RequiresLineOfSight = false
         end)
-
         if fireHarvestPrompt then
             fireHarvestPrompt(harvestPrompt)
             success = true
@@ -304,17 +285,14 @@ local function fireHarvestFromPlant(plant)
             success = true
         end
     end)
-
     return success
 end
 
 local function processHarvest()
     if not _G.AutoHarvest or #(_G.HarvestSelectedSeeds or {}) == 0 then return end
     if not _G.MyPlot then _G.MyPlot = findMyPlot() end
-
     local plot = _G.MyPlot
     if not plot or not plot:FindFirstChild("Plants") then return end
-
     local count = 0
     for _, plant in ipairs(plot.Plants:GetChildren()) do
         if not _G.AutoHarvest then break end
@@ -364,7 +342,6 @@ local function triggerPickupPrompt(prompt)
         prompt.HoldDuration = 0
         prompt.MaxActivationDistance = 99999
         prompt.RequiresLineOfSight = false
-
         if firePickupPrompt then
             firePickupPrompt(prompt)
         elseif fireproximityprompt then
@@ -379,27 +356,21 @@ task.spawn(function()
             pcall(function()
                 local folder = workspace:FindFirstChild("DroppedItems")
                 if not folder then return end
-                
                 local char = LocalPlayer.Character
                 if not char then return end
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
-
                 for _, item in ipairs(folder:GetChildren()) do
                     if not _G.AutoCollectSeed then break end
-
                     local basePart = item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart", true)
                     local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
-
                     if basePart and prompt then
                         local distance = (hrp.Position - basePart.Position).Magnitude
                         local timeToTween = distance / (_G.TweenCollectSpeed or 35)
-
                         local tweenInfo = TweenInfo.new(timeToTween, Enum.EasingStyle.Linear)
                         local tween = TweenService:Create(hrp, tweenInfo, {CFrame = basePart.CFrame})
                         tween:Play()
                         tween.Completed:Wait()
-
                         triggerPickupPrompt(prompt)
                         task.wait(0.2)
                     end
@@ -409,7 +380,125 @@ task.spawn(function()
     end
 end)
 
+-- --------------------------------------------------------------------
+-- AUTO SHOVEL SECTION (BỔ SUNG THEO YÊU CẦU)
+-- --------------------------------------------------------------------
+
+local ShovelSection = AutoTab:Section({ Title = "🧹 Tự Động Đào Cây (Auto Shovel)" })
+
+_G.ShovelSelectedSeeds = {}
+_G.AutoShovel = false
+local ShovelDropdown
+
+local function filterShovelSeeds(filterType)
+    local filtered = {}
+    for _, name in ipairs(AllSeeds) do
+        local lowerName = string.lower(name)
+        local isMaple = string.find(lowerName, "maple", 1, true) ~= nil
+        local isAtlantic = lowerName == "atlantic giant pumpkin"
+        if filterType == "All" then
+            table.insert(filtered, name)
+        elseif filterType == "Normal" then
+            if not isMaple and not isAtlantic then table.insert(filtered, name) end
+        elseif filterType == "Maple" then
+            if isMaple or isAtlantic then table.insert(filtered, name) end
+        end
+    end
+    return filtered
+end
+
+ShovelSection:Dropdown({
+    Title = "Shovel Seed Filter",
+    Desc = "Bộ lọc riêng cho Auto Shovel",
+    Values = { "All", "Normal", "Maple" },
+    Value = "All",
+    Callback = function(Value)
+        local list = filterShovelSeeds(Value)
+        _G.ShovelSelectedSeeds = {}
+        if ShovelDropdown then
+            pcall(function() ShovelDropdown:SetValues(list) end)
+            pcall(function() ShovelDropdown:SetValue({}) end)
+        end
+    end
+})
+
+ShovelDropdown = ShovelSection:Dropdown({
+    Title = "Chọn Cây Muốn Đào",
+    Desc = "Multi-Select (Bấm 1 lần chọn, bấm lại để bỏ)",
+    Values = AllSeeds,
+    Multi = true,
+    Value = {},
+    Callback = function(Values)
+        if typeof(Values) == "table" then
+            _G.ShovelSelectedSeeds = Values
+        else
+            _G.ShovelSelectedSeeds = {}
+        end
+    end
+})
+
+local function isShovelSelected(seedName)
+    if not seedName then return false end
+    for _, selected in ipairs(_G.ShovelSelectedSeeds or {}) do
+        if string.lower(tostring(selected)) == string.lower(tostring(seedName)) then
+            return true
+        end
+    end
+    return false
+end
+
+local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
+
+local function processAutoShovel()
+    if not _G.AutoShovel or #(_G.ShovelSelectedSeeds or {}) == 0 then return end
+    if not _G.MyPlot then _G.MyPlot = findMyPlot() end
+    
+    local plot = _G.MyPlot
+    if not plot or not plot:FindFirstChild("Plants") then return end
+
+    local character = LocalPlayer.Character
+    local shovelTool = character and (character:FindFirstChild("Shovel") or character:FindFirstChildWhichIsA("Tool"))
+
+    for _, plant in ipairs(plot.Plants:GetChildren()) do
+        if not _G.AutoShovel then break end
+        
+        local seedName = getPlantSeedName(plant)
+        if seedName and isShovelSelected(seedName) then
+            local plantUUIDName = plant.Name
+            pcall(function()
+                local payloadString = string.format("\t\000/%s\000\006Shovel\000", plantUUIDName)
+                local args = {
+                    buffer.fromstring(payloadString),
+                    shovelTool
+                }
+                PacketRemote:FireServer(unpack(args))
+            end)
+            task.wait(0.08)
+        end
+    end
+end
+
+ShovelSection:Toggle({
+    Title = "Auto Shovel",
+    Desc = "Tự động đào các cây đã chọn",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoShovel = Value
+        if not Value then return end
+        
+        task.spawn(function()
+            while _G.AutoShovel do
+                processAutoShovel()
+                task.wait(0.5)
+            end
+        end)
+    end
+})
+
+-- --------------------------------------------------------------------
+
 local AutoSection2 = AutoTab:Section({ Title = "💰 Tự Động Bán" })
+
 _G.DelaySell = 0
 _G.AutoSell = false
 
@@ -431,13 +520,11 @@ AutoSection2:Toggle({
     Callback = function(Value)
         _G.AutoSell = Value
         if not Value then return end
-
         task.spawn(function()
             local Networking
             pcall(function()
                 Networking = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Networking"))
             end)
-
             while _G.AutoSell do
                 pcall(function()
                     if Networking and Networking.NPCS and Networking.NPCS.SellAll then
@@ -451,6 +538,7 @@ AutoSection2:Toggle({
 })
 
 local SpeedSection = AutoTab:Section({ Title = "⚡ Speed" })
+
 _G.WalkSpeed = 16
 _G.ActivateSpeed = false
 
@@ -484,7 +572,6 @@ RunService.Heartbeat:Connect(function()
     if not _G.ActivateSpeed then return end
     local character = LocalPlayer.Character
     if not character then return end
-
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if humanoid then
         humanoid.WalkSpeed = math.clamp(_G.WalkSpeed or 16, 16, 50)
@@ -495,13 +582,11 @@ end)
 -- SHOP TAB
 -- ====================================================================
 
-local PacketRemote = ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
 local ShopSection = ShopTab:Section({ Title = "🌱 Cửa Hàng Hạt Giống" })
 
 _G.SelectedSeeds = {}
 _G.AutoBuySeed = false
 _G.AutoBuyAllSeeds = false
-
 local ShopSeedDropdown
 
 local function filterShopSeeds(filterType)
@@ -510,7 +595,6 @@ local function filterShopSeeds(filterType)
         local lowerName = string.lower(name)
         local isMaple = string.find(lowerName, "maple", 1, true) ~= nil
         local isAtlantic = lowerName == "atlantic giant pumpkin"
-
         if filterType == "All" then
             table.insert(filtered, name)
         elseif filterType == "Normal" then
@@ -604,7 +688,7 @@ ShopSection:Toggle({
 })
 
 -- ====================================================================
--- PET TAB (CẬP NHẬT: TOÀN BỘ PET MAP FALL HARVEST)
+-- PET TAB
 -- ====================================================================
 
 local PetSection = PetTab:Section({ Title = "🐾 Mua Pet Tự Động" })
@@ -648,7 +732,6 @@ local function triggerBuyPrompt(prompt)
         prompt.HoldDuration = 0
         prompt.MaxActivationDistance = 99999
         prompt.RequiresLineOfSight = false
-
         if fireproximityprompt then
             fireproximityprompt(prompt)
         end
@@ -670,9 +753,8 @@ task.spawn(function()
             pcall(function()
                 local mapFolder = workspace:FindFirstChild("Map")
                 local wildPetSpawns = mapFolder and mapFolder:FindFirstChild("WildPetSpawns")
-                
                 if not wildPetSpawns then return end
-
+                
                 local char = LocalPlayer.Character
                 if not char then return end
                 local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -680,7 +762,6 @@ task.spawn(function()
 
                 for _, petModel in ipairs(wildPetSpawns:GetChildren()) do
                     if not _G.AutoBuyPet then break end
-
                     local petNameAttr = petModel:GetAttribute("PetName") or petModel.Name
                     
                     local isMatched = false
@@ -690,20 +771,16 @@ task.spawn(function()
                             break
                         end
                     end
-
                     if isMatched then
                         local rootPart = petModel:FindFirstChild("RootPart") or petModel:FindFirstChildWhichIsA("BasePart", true)
                         local buyPrompt = rootPart and rootPart:FindFirstChild("BuyPrompt") or petModel:FindFirstChildWhichIsA("ProximityPrompt", true)
-
                         if buyPrompt and rootPart then
                             local distance = (hrp.Position - rootPart.Position).Magnitude
                             local tweenTime = distance / (_G.TweenPetSpeed or 35)
-
                             local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
                             local tween = TweenService:Create(hrp, tweenInfo, {CFrame = rootPart.CFrame * CFrame.new(0, 2, 3)})
                             tween:Play()
                             tween.Completed:Wait()
-
                             task.wait(0.1)
                             triggerBuyPrompt(buyPrompt)
                             task.wait(0.3)
@@ -815,7 +892,6 @@ MiscSection1:Toggle({
     Callback = function(Value)
         local gardens = workspace:FindFirstChild("Gardens")
         if not gardens then return end
-
         for _, obj in ipairs(gardens:GetChildren()) do
             local isMyPlot = _G.MyPlot and obj == _G.MyPlot
             if not isMyPlot then
@@ -859,9 +935,7 @@ MiscSection2:Button({
                 Terrain.WaterReflectance = 0
                 Terrain.WaterTransparency = 1
             end
-
             Lighting.GlobalShadows = false
-
             for _, obj in ipairs(workspace:GetDescendants()) do
                 if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
                     obj.Enabled = false
@@ -869,7 +943,6 @@ MiscSection2:Button({
                     obj.Material = Enum.Material.SmoothPlastic
                 end
             end
-
             pcall(function()
                 settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
             end)
