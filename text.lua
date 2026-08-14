@@ -1,7 +1,7 @@
 -- ====================================================================
 -- GEMINI HUB - GAG2
--- Full Version (Updated: Fall Harvest Pets, Auto Shovel, Magic Mails & Anti-AFK W)
--- Script hợp nhất bởi WhiteSs & Gemini
+-- Full Version (Updated: Fall Harvest Pets, Magic Mails & Anti-AFK W)
+-- Script hợp nhất bởi WhiteSs
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -409,158 +409,6 @@ task.spawn(function()
     end
 end)
 
--- ====================================================================
--- AUTO SHOVEL SECTION (THÊM MỚI VÀO AUTO TAB)
--- ====================================================================
-
-local ShovelSection = AutoTab:Section({ Title = "🧹 Tự Động Đào Cây (Auto Shovel)" })
-
-_G.AutoShovel = false
-_G.ShovelSelectedSeeds = {}
-
-local ShovelSeedDropdown
-
-local function filterShovelSeeds(filterType)
-    local filtered = {}
-    for _, name in ipairs(AllSeeds) do
-        local lowerName = string.lower(name)
-        local isMaple = string.find(lowerName, "maple", 1, true) ~= nil
-        local isAtlantic = lowerName == "atlantic giant pumpkin"
-
-        if filterType == "All" then
-            table.insert(filtered, name)
-        elseif filterType == "Normal" then
-            if not isMaple and not isAtlantic then table.insert(filtered, name) end
-        elseif filterType == "Maple" then
-            if isMaple or isAtlantic then table.insert(filtered, name) end
-        end
-    end
-    return filtered
-end
-
-ShovelSection:Dropdown({
-    Title = "Shovel Seed Filter",
-    Desc = "Lọc Normal / Maple",
-    Values = { "All", "Normal", "Maple" },
-    Value = "All",
-    Callback = function(Value)
-        local list = filterShovelSeeds(Value)
-        _G.ShovelSelectedSeeds = {}
-        if ShovelSeedDropdown then
-            pcall(function() ShovelSeedDropdown:SetValues(list) end)
-            pcall(function() ShovelSeedDropdown:SetValue({}) end)
-        end
-    end
-})
-
-ShovelSeedDropdown = ShovelSection:Dropdown({
-    Title = "Chọn Cây Cần Đào",
-    Desc = "Đọc Attribute SeedName để lọc cây",
-    Values = AllSeeds,
-    Multi = true,
-    Value = {},
-    Callback = function(Values)
-        if typeof(Values) == "table" then
-            _G.ShovelSelectedSeeds = Values
-        else
-            _G.ShovelSelectedSeeds = {}
-        end
-    end
-})
-
-local function getShovelTool()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Shovel") then
-        return char.Shovel
-    end
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if backpack and backpack:FindFirstChild("Shovel") then
-        return backpack.Shovel
-    end
-    return nil
-end
-
-local function sendShovelPacket(plantUUID, shovelTool)
-    pcall(function()
-        local packetRemote = ReplicatedStorage:FindFirstChild("SharedModules", true)
-            and ReplicatedStorage.SharedModules:FindFirstChild("Packet", true)
-            and ReplicatedStorage.SharedModules.Packet:FindFirstChild("RemoteEvent", true)
-            
-        if not packetRemote then
-            packetRemote = ReplicatedStorage:FindFirstChild("Network", true)
-                and ReplicatedStorage.Network:FindFirstChild("RemoteEvent", true)
-        end
-
-        if packetRemote then
-            local strAction = "Shovel"
-            local b = buffer.create(1 + 2 + #plantUUID + 2 + #strAction)
-            
-            buffer.writeu8(b, 0, 116) -- Opcode 116 Shovel
-            
-            buffer.writeu16(b, 1, #plantUUID)
-            buffer.writestring(b, 3, plantUUID)
-            
-            local offset = 3 + #plantUUID
-            buffer.writeu16(b, offset, #strAction)
-            buffer.writestring(b, offset + 2, strAction)
-
-            packetRemote:FireServer(b, shovelTool)
-        end
-    end)
-end
-
-ShovelSection:Toggle({
-    Title = "Auto Shovel Selected Plants",
-    Desc = "Quét SeedName -> Lấy Model Name (UUID) -> Đào",
-    Value = false,
-    Callback = function(Value)
-        _G.AutoShovel = Value
-    end
-})
-
-task.spawn(function()
-    while task.wait(0.2) do
-        if _G.AutoShovel and #(_G.ShovelSelectedSeeds or {}) > 0 then
-            pcall(function()
-                if not _G.MyPlot or not _G.MyPlot.Parent then
-                    _G.MyPlot = findMyPlot()
-                end
-                
-                local plot = _G.MyPlot
-                if not plot or not plot:FindFirstChild("Plants") then return end
-
-                local shovelTool = getShovelTool()
-
-                for _, plant in ipairs(plot.Plants:GetChildren()) do
-                    if not _G.AutoShovel then break end
-
-                    local seedName = plant:GetAttribute("SeedName") or getPlantSeedName(plant)
-                    local plantUUID = plant:GetAttribute("PlantId") or plant.Name
-
-                    if seedName and plantUUID then
-                        local isMatch = false
-                        for _, selectedSeed in ipairs(_G.ShovelSelectedSeeds) do
-                            if string.lower(tostring(selectedSeed)) == string.lower(tostring(seedName)) then
-                                isMatch = true
-                                break
-                            end
-                        end
-
-                        if isMatch then
-                            sendShovelPacket(plantUUID, shovelTool)
-                            task.wait(0.05)
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- ====================================================================
--- AUTO SELL & SPEED
--- ====================================================================
-
 local AutoSection2 = AutoTab:Section({ Title = "💰 Tự Động Bán" })
 _G.DelaySell = 0
 _G.AutoSell = false
@@ -765,14 +613,16 @@ local FallHarvestPets = {
     "Fox", "Wolf", "Dog", "Turkey", "Hedgehog", "Squirrel", "Swan", "Bear", "Rabbit", "Owl", "Deer", "Shadow Dragon" 
 }
 
-_G.SelectedPets = {}
+_G.SelectedPets = { "Fox", "Wolf" }
 _G.AutoBuyPet = false
+_G.TweenPetSpeed = 35
 
 PetSection:Dropdown({
-    Title = "Chọn Pet Mua",
+    Title = "Chọn Pet Muốn Mua",
+    Desc = "Mặc định: Fox, Wolf",
     Values = FallHarvestPets,
     Multi = true,
-    Value = {},
+    Value = { "Fox", "Wolf" },
     Callback = function(Values)
         if typeof(Values) == "table" then
             _G.SelectedPets = Values
@@ -782,27 +632,278 @@ PetSection:Dropdown({
     end
 })
 
+PetSection:Slider({
+    Title = "Tốc độ Tween đến Pet",
+    Desc = "Mặc định: 35",
+    Step = 1,
+    Value = { Min = 10, Max = 100, Default = 35 },
+    Callback = function(Value)
+        _G.TweenPetSpeed = tonumber(Value) or 35
+    end
+})
+
+local function triggerBuyPrompt(prompt)
+    if not prompt then return end
+    pcall(function()
+        prompt.HoldDuration = 0
+        prompt.MaxActivationDistance = 99999
+        prompt.RequiresLineOfSight = false
+
+        if fireproximityprompt then
+            fireproximityprompt(prompt)
+        end
+    end)
+end
+
 PetSection:Toggle({
-    Title = "Auto Buy Selected Pets",
-    Desc = "Tự động mua Pet Fall Harvest",
+    Title = "Auto Buy Pet",
+    Desc = "Quét WildPetSpawns -> Tween -> BuyPrompt",
     Value = false,
     Callback = function(Value)
         _G.AutoBuyPet = Value
+    end
+})
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.AutoBuyPet then
+            pcall(function()
+                local mapFolder = workspace:FindFirstChild("Map")
+                local wildPetSpawns = mapFolder and mapFolder:FindFirstChild("WildPetSpawns")
+                
+                if not wildPetSpawns then return end
+
+                local char = LocalPlayer.Character
+                if not char then return end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+
+                for _, petModel in ipairs(wildPetSpawns:GetChildren()) do
+                    if not _G.AutoBuyPet then break end
+
+                    local petNameAttr = petModel:GetAttribute("PetName") or petModel.Name
+                    
+                    local isMatched = false
+                    for _, targetName in ipairs(_G.SelectedPets or {}) do
+                        if string.find(string.lower(tostring(petNameAttr)), string.lower(tostring(targetName))) then
+                            isMatched = true
+                            break
+                        end
+                    end
+
+                    if isMatched then
+                        local rootPart = petModel:FindFirstChild("RootPart") or petModel:FindFirstChildWhichIsA("BasePart", true)
+                        local buyPrompt = rootPart and rootPart:FindFirstChild("BuyPrompt") or petModel:FindFirstChildWhichIsA("ProximityPrompt", true)
+
+                        if buyPrompt and rootPart then
+                            local distance = (hrp.Position - rootPart.Position).Magnitude
+                            local tweenTime = distance / (_G.TweenPetSpeed or 35)
+
+                            local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
+                            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = rootPart.CFrame * CFrame.new(0, 2, 3)})
+                            tween:Play()
+                            tween.Completed:Wait()
+
+                            task.wait(0.1)
+                            triggerBuyPrompt(buyPrompt)
+                            task.wait(0.3)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ====================================================================
+-- GEAR TAB
+-- ====================================================================
+
+local GearSection = GearTab:Section({ Title = "🔧 Cửa Hàng Gear" })
+
+local AllGears = {
+    "Harp",
+    "Syrup Watering Can",
+    "Syrup Sprinkler",
+    "Super Syrup Watering Can",
+    "Super Syrup Sprinkler",
+    "Rare Magic Mail",
+    "Legendary Magic Mail",
+    "Super Magic Mail"
+}
+
+_G.SelectedGears = {}
+_G.AutoBuyGear = false
+_G.AutoBuyAllGears = false
+
+local function buyGearFast(gearName)
+    pcall(function()
+        local b = buffer.create(3 + #gearName)
+        buffer.writeu8(b, 0, 164)
+        buffer.writeu8(b, 1, 0)
+        buffer.writeu8(b, 2, #gearName)
+        buffer.writestring(b, 3, gearName)
+        PacketRemote:FireServer(b)
+    end)
+end
+
+GearSection:Dropdown({
+    Title = "Chọn Gear",
+    Desc = "Multi-Select (Bao gồm Harp & Magic Mails)",
+    Values = AllGears,
+    Multi = true,
+    Value = {},
+    Callback = function(Values)
+        if typeof(Values) == "table" then
+            _G.SelectedGears = Values
+        else
+            _G.SelectedGears = {}
+        end
+    end
+})
+
+GearSection:Toggle({
+    Title = "Auto Buy Selected Gear",
+    Desc = "Mua Gear đã chọn",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoBuyGear = Value
         if not Value then return end
         task.spawn(function()
-            while _G.AutoBuyPet do
-                for _, petName in ipairs(_G.SelectedPets or {}) do
-                    if not _G.AutoBuyPet then break end
-                    pcall(function()
-                        local petRemote = ReplicatedStorage:FindFirstChild("BuyPet", true) or ReplicatedStorage:FindFirstChild("PetEgg", true)
-                        if petRemote then
-                            petRemote:FireServer(petName)
-                        end
-                    end)
-                    task.wait(0.1)
+            while _G.AutoBuyGear do
+                for _, gearName in ipairs(_G.SelectedGears or {}) do
+                    if not _G.AutoBuyGear then break end
+                    buyGearFast(gearName)
+                    task.wait(0.02)
                 end
-                task.wait(0.2)
+                task.wait(0.05)
             end
         end)
     end
 })
+
+GearSection:Toggle({
+    Title = "Auto Buy All Gear",
+    Desc = "Mua toàn bộ Gear",
+    Value = false,
+    Callback = function(Value)
+        _G.AutoBuyAllGears = Value
+        if not Value then return end
+        task.spawn(function()
+            while _G.AutoBuyAllGears do
+                for _, gearName in ipairs(AllGears) do
+                    if not _G.AutoBuyAllGears then break end
+                    buyGearFast(gearName)
+                    task.wait(0.02)
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+})
+
+-- ====================================================================
+-- MISC TAB
+-- ====================================================================
+
+local MiscSection1 = MiscTab:Section({ Title = "🌳 Tối Ưu Vườn" })
+
+MiscSection1:Toggle({
+    Title = "Hide Others Garden",
+    Desc = "Ẩn Garden người khác",
+    Value = false,
+    Callback = function(Value)
+        local gardens = workspace:FindFirstChild("Gardens")
+        if not gardens then return end
+
+        for _, obj in ipairs(gardens:GetChildren()) do
+            local isMyPlot = _G.MyPlot and obj == _G.MyPlot
+            if not isMyPlot then
+                for _, child in ipairs(obj:GetDescendants()) do
+                    if child:IsA("BasePart") then
+                        child.Transparency = Value and 1 or 0
+                        child.CanCollide = not Value
+                    end
+                end
+            end
+        end
+    end
+})
+
+MiscSection1:Toggle({
+    Title = "Hide Your Garden",
+    Desc = "Ẩn Garden của bạn",
+    Value = false,
+    Callback = function(Value)
+        if not _G.MyPlot then return end
+        for _, child in ipairs(_G.MyPlot:GetDescendants()) do
+            if child:IsA("BasePart") then
+                child.Transparency = Value and 1 or 0
+                child.CanCollide = not Value
+            end
+        end
+    end
+})
+
+local MiscSection2 = MiscTab:Section({ Title = "🚀 Tối Ưu & Chống AFK" })
+
+MiscSection2:Button({
+    Title = "FPS BOOSTER",
+    Desc = "Giảm Texture / Effect / Shadow",
+    Callback = function()
+        pcall(function()
+            local Terrain = workspace:FindFirstChildOfClass("Terrain")
+            if Terrain then
+                Terrain.WaterWaveSize = 0
+                Terrain.WaterWaveSpeed = 0
+                Terrain.WaterReflectance = 0
+                Terrain.WaterTransparency = 1
+            end
+
+            Lighting.GlobalShadows = false
+
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                    obj.Enabled = false
+                elseif obj:IsA("BasePart") then
+                    obj.Material = Enum.Material.SmoothPlastic
+                end
+            end
+
+            pcall(function()
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            end)
+        end)
+    end
+})
+
+_G.AntiAFK = true
+
+MiscSection2:Toggle({
+    Title = "Anti-AFK (Bấm W mỗi 3p)",
+    Desc = "Tự động ấn W trong 0.5s mỗi 3 phút để không bị Kick AFK",
+    Value = true,
+    Callback = function(Value)
+        _G.AntiAFK = Value
+    end
+})
+
+pcall(function()
+    for _, conn in ipairs(getconnections(LocalPlayer.Idled)) do
+        if conn.Disable then conn:Disable() end
+        if conn.Disconnect then conn:Disconnect() end
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(180)
+        if _G.AntiAFK then
+            pcall(function()
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
+                task.wait(0.5)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+            end)
+        end
+    end
+end)
